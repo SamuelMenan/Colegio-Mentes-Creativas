@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useId, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useState, useId, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 // ---------------------------------------------------------------------------
@@ -264,14 +264,15 @@ type OrbitRingProps = {
   shouldAnimate: boolean;
   duration: number;
   children: React.ReactNode;
+  ringClass?: string; // permite resaltar/dim la órbita
 };
 
-const OrbitRing: React.FC<OrbitRingProps> = ({ size, shouldAnimate, duration, children }) => (
+const OrbitRing: React.FC<OrbitRingProps> = ({ size, shouldAnimate, duration, children, ringClass }) => (
   <div className="absolute inset-0 flex items-center justify-center">
     {/* Halo tenue de la órbita */}
     <div
       aria-hidden
-      className="pointer-events-none rounded-full border border-white/20 shadow-[0_0_12px_rgba(80,160,255,0.25)]"
+      className={`pointer-events-none rounded-full border shadow-[0_0_12px_rgba(80,160,255,0.25)] ${ringClass ?? 'border-white/20'}`}
       style={{ width: size, height: size }}
     />
     {/* Contenedor rotatorio */}
@@ -292,9 +293,10 @@ type PlanetButtonProps = {
   shouldAnimate: boolean;
   selected: boolean;
   onSelect: (p: PlanetData) => void;
+  forceLabels?: boolean;
 };
 
-const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, shouldAnimate, selected, onSelect }) => {
+const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, shouldAnimate, selected, onSelect, forceLabels }) => {
   const labelId = `label-${p.id}`;
   return (
     <motion.button
@@ -350,7 +352,7 @@ const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, should
       <span
         id={labelId}
         className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 whitespace-nowrap rounded-md bg-black/70 text-white px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition ${
-          isAccessibleMode ? "opacity-100" : ""
+          isAccessibleMode || forceLabels ? "opacity-100" : ""
         }`}
         role="tooltip"
       >
@@ -535,8 +537,7 @@ const SistemaSolar: React.FC = () => {
   const [isAccessibleMode, setIsAccessibleMode] = useState(false);
   // Tema fijo oscuro (se elimina el toggle para simplificar)
   const [realOrbits, setRealOrbits] = useState(false);
-  const [muted, setMuted] = useState(false);
-  const [volume, setVolume] = useState(0.3);
+  // Sonido eliminado a solicitud del usuario
   const reduceMotion = useReducedMotion();
 
   // Si el usuario prefiere menos movimiento o modo accesible está activo, no animamos.
@@ -559,48 +560,17 @@ const SistemaSolar: React.FC = () => {
     []
   );
 
-  // Audio mínimo (click y ambiente sutil) sin recursos externos
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
-
-  const ensureAudio = useCallback(async () => {
-    if (audioCtxRef.current) return audioCtxRef.current;
-    const AC: typeof AudioContext | undefined = (window as unknown as {
-      AudioContext?: typeof AudioContext;
-      webkitAudioContext?: typeof AudioContext;
-    }).AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return null as unknown as AudioContext;
-    const ctx = new AC();
-    const gain = ctx.createGain();
-    gain.gain.value = muted ? 0 : volume;
-    gain.connect(ctx.destination);
-    audioCtxRef.current = ctx;
-    gainRef.current = gain;
-    return ctx;
-  }, [muted, volume]);
-
-  const playClick = useCallback(async () => {
-    if (muted) return;
-  const ctx = await ensureAudio();
-  if (!ctx) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = 660;
-    gain.gain.value = 0.0001;
-    osc.connect(gain);
-    gain.connect(gainRef.current!);
-    osc.start();
-    // env corto
-    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
-    osc.stop(ctx.currentTime + 0.13);
-  }, [ensureAudio, muted]);
-
-  useEffect(() => {
-    if (!gainRef.current) return;
-    gainRef.current.gain.value = muted ? 0 : volume;
-  }, [muted, volume]);
+  // Estados de interactividad educativa
+  const [highlightInner, setHighlightInner] = useState(false);
+  const [showLabels, setShowLabels] = useState(false);
+  const [factIndex, setFactIndex] = useState(0);
+  const facts = [
+    "El Sol contiene más del 99% de la masa del Sistema Solar.",
+    "Los planetas interiores son rocosos: Mercurio, Venus, Tierra y Marte.",
+    "Júpiter es tan grande que cabrían más de 1,300 Tierras dentro.",
+    "Urano gira casi de lado, ¡sus estaciones duran décadas!",
+    "Neptuno tiene los vientos más rápidos del Sistema Solar.",
+  ];
 
   // Speech synthesis
   const speakText = useCallback((text: string) => {
@@ -650,6 +620,14 @@ const SistemaSolar: React.FC = () => {
           </p>
         </header>
 
+        {/* Descripción introductoria */}
+        <section className="mb-4 rounded-xl bg-slate-800/60 border border-slate-700 p-4 text-slate-100">
+          <p className="text-sm md:text-base">
+            El Sistema Solar está formado por el Sol y los cuerpos que lo orbitan: ocho planetas, sus lunas,
+            y muchos objetos más como asteroides y cometas. Usa las opciones de abajo para explorar y aprender.
+          </p>
+        </section>
+
         {/* Controles */}
         <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
           <div className="flex items-center gap-2">
@@ -664,30 +642,38 @@ const SistemaSolar: React.FC = () => {
             >
               {realOrbits ? "Órbitas reales" : "Órbitas simples"}
             </button>
+            <button
+              type="button"
+              onClick={() => setHighlightInner((v) => !v)}
+              className="px-3 py-2 rounded-lg bg-cyan-700 hover:bg-cyan-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300"
+              aria-pressed={highlightInner}
+              aria-label="Resaltar planetas interiores"
+              title="Resaltar planetas interiores"
+            >
+              {highlightInner ? "Interiores resaltados" : "Resaltar interiores"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowLabels((v) => !v)}
+              className="px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+              aria-pressed={showLabels}
+              aria-label="Mostrar etiquetas"
+              title="Mostrar etiquetas"
+            >
+              {showLabels ? "Etiquetas visibles" : "Mostrar etiquetas"}
+            </button>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setMuted((m) => !m)}
-              className="px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
-              aria-pressed={muted}
-              aria-label={muted ? "Activar sonido" : "Silenciar sonido"}
-              title={muted ? "Activar sonido" : "Silenciar sonido"}
+              onClick={() => setFactIndex((i) => (i + 1) % facts.length)}
+              className="px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+              aria-label="Mostrar siguiente dato curioso"
+              title="Siguiente dato curioso"
             >
-              {muted ? "Silenciado" : "Sonido ON"}
+              Dato curioso
             </button>
-            <label className="flex items-center gap-2 text-sm text-white">
-              <span className="sr-only">Volumen</span>
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={muted ? 0 : volume}
-                onChange={(e) => setVolume(parseFloat(e.currentTarget.value))}
-                aria-label="Ajustar volumen"
-              />
-            </label>
+            <span className="text-slate-200 text-sm max-w-[420px] line-clamp-2">{facts[factIndex]}</span>
           </div>
         </div>
 
@@ -708,7 +694,7 @@ const SistemaSolar: React.FC = () => {
             <div className="relative z-20">
               <button
                 type="button"
-                onClick={() => { setSeleccionado(PLANETAS.find(p => p.id === 'sol') || null); playClick(); }}
+                onClick={() => { setSeleccionado(PLANETAS.find(p => p.id === 'sol') || null); }}
                 className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-yellow-300"
                 aria-label="Mostrar información del Sol"
                 title="Sol"
@@ -755,8 +741,14 @@ const SistemaSolar: React.FC = () => {
           >
             {PLANETAS.filter(p => p.id !== 'sol').map((p) => {
               const ringSize = `${getOrbitPercent(p)}%`;
+              const inner = p.id === 'mercurio' || p.id === 'venus' || p.id === 'tierra' || p.id === 'marte';
+              const ringClass = highlightInner
+                ? inner
+                  ? 'border-cyan-300/60 shadow-[0_0_14px_rgba(34,211,238,0.5)]'
+                  : 'border-white/10 opacity-50'
+                : undefined;
               return (
-                <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration}>
+                <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration} ringClass={ringClass}>
                   {/* Planeta */}
                   <PlanetButton
                     p={p}
@@ -765,8 +757,8 @@ const SistemaSolar: React.FC = () => {
                     selected={seleccionado?.id === p.id}
                     onSelect={(pl) => {
                       setSeleccionado(pl);
-                      playClick();
                     }}
+                    forceLabels={showLabels}
                   />
                 </OrbitRing>
               );
@@ -789,6 +781,12 @@ const SistemaSolar: React.FC = () => {
         </footer>
       </div>
 
+      {/* Mini quiz educativo */}
+      <section className="w-full max-w-[900px] mt-6 mb-2 mx-auto rounded-xl bg-slate-800/60 border border-slate-700 p-4 text-slate-100">
+        <h3 className="text-lg font-bold mb-2">Mini Quiz</h3>
+        <Quiz />
+      </section>
+
       {/* Modal del planeta */}
       <PlanetModal
         planeta={seleccionado}
@@ -796,6 +794,42 @@ const SistemaSolar: React.FC = () => {
         isAccessibleMode={isAccessibleMode}
         onSpeakRequest={speakText}
       />
+    </div>
+  );
+};
+
+// Quiz simple
+const Quiz: React.FC = () => {
+  const [answer, setAnswer] = useState<string | null>(null);
+  const correct = 'jupiter';
+  return (
+    <div>
+      <p className="mb-2">¿Cuál es el planeta más grande del Sistema Solar?</p>
+      <div className="flex flex-wrap gap-2">
+        {[
+          { id: 'tierra', label: 'La Tierra' },
+          { id: 'jupiter', label: 'Júpiter' },
+          { id: 'marte', label: 'Marte' },
+        ].map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setAnswer(opt.id)}
+            className={`px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+              answer === opt.id
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-700 hover:bg-slate-600 text-white'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {answer && (
+        <p className={`mt-3 text-sm ${answer === correct ? 'text-emerald-400' : 'text-rose-400'}`}>
+          {answer === correct ? '¡Correcto! Júpiter es el más grande.' : 'Intenta de nuevo. Pista: tiene la Gran Mancha Roja.'}
+        </p>
+      )}
     </div>
   );
 };
