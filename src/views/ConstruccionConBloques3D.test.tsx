@@ -1,27 +1,27 @@
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent } from "@testing-library/react";
+import React from "react";
 
 /* Mocks ligeros para evitar dependencias WebGL en tests */
-jest.mock("@react-three/fiber", () => {
-  const React = require("react");
-  return {
-    __esModule: true,
-    Canvas: ({ children }: any) => React.createElement("div", { "data-testid": "r3f-canvas" }, children),
-    useFrame: () => {},
-    useThree: () => ({
-      camera: {
-        position: { set: jest.fn() },
-        lookAt: jest.fn(),
-      },
-    }),
-  };
-});
+jest.mock("@react-three/fiber", () => ({
+  __esModule: true,
+  Canvas: ({ children }: React.PropsWithChildren<{}>) => (
+    <div data-testid="r3f-canvas">{children}</div>
+  ),
+  useFrame: () => {},
+  useThree: () => ({
+    camera: {
+      position: { set: jest.fn() },
+      lookAt: jest.fn(),
+    },
+  }),
+}));
 
-jest.mock("@react-three/drei", () => {
-  const React = require("react");
-  const Stub = (props: any) => React.createElement("div", props, props.children);
-  return { __esModule: true, OrbitControls: Stub, Grid: Stub };
-});
+jest.mock("@react-three/drei", () => ({
+  __esModule: true,
+  OrbitControls: (props: React.PropsWithChildren<{}>) => <div {...props} />,
+  Grid: (props: React.PropsWithChildren<{}>) => <div {...props} />,
+}));
 
 import ConstruccionConBloques3D from "./ConstruccionConBloques3D";
 
@@ -37,7 +37,7 @@ describe("ConstruccionConBloques3D - cámara y controles", () => {
     expect(screen.getByTestId("r3f-canvas")).toBeInTheDocument();
 
     // Simula movimiento de cámara (mock de OrbitControls)
-    const cameraMock = require("@react-three/fiber").useThree().camera;
+    const cameraMock = jest.mocked(require("@react-three/fiber").useThree().camera);
     expect(cameraMock.position.set).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), expect.any(Number));
     expect(cameraMock.lookAt).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), expect.any(Number));
   });
@@ -46,19 +46,18 @@ describe("ConstruccionConBloques3D - cámara y controles", () => {
     render(<ConstruccionConBloques3D />);
 
     // OrbitControls mock debe incluir los parámetros ajustados
-    const OrbitControlsMock = require("@react-three/drei").OrbitControls;
+    const OrbitControlsMock = jest.mocked(require("@react-three/drei").OrbitControls);
     expect(OrbitControlsMock).toBeDefined();
     expect(OrbitControlsMock).toHaveProperty("rotateSpeed", 0.5);
     expect(OrbitControlsMock).toHaveProperty("zoomSpeed", 0.5);
     expect(OrbitControlsMock).toHaveProperty("maxPolarAngle", Math.PI / 2);
   });
 
-  // Nuevo test: verifica colocación precisa con un clic y sin variación de cámara.
   test("coloca bloque exactamente en la celda apuntada (ghost) con precisión", () => {
     render(<ConstruccionConBloques3D />);
     // Simular movimiento del ghost (tecla para posicionarlo)
     fireEvent.keyDown(window, { key: "ArrowRight" }); // x+1
-    fireEvent.keyDown(window, { key: "ArrowDown" });  // y+1
+    fireEvent.keyDown(window, { key: "ArrowDown" }); // y+1
     const before = screen.getByText(/Bloques:\s*0/);
     expect(before).toBeInTheDocument();
     // Colocar con Enter
