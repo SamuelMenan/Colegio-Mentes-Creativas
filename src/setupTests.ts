@@ -5,16 +5,16 @@ import { TextEncoder, TextDecoder } from "util";
 
 // Polyfill para TextEncoder/TextDecoder
 if (typeof global.TextEncoder === "undefined") {
-  (global as any).TextEncoder = TextEncoder;
+  (global as unknown as { TextEncoder: typeof TextEncoder }).TextEncoder = TextEncoder;
 }
 
 if (typeof global.TextDecoder === "undefined") {
-  (global as any).TextDecoder = TextDecoder;
+  (global as unknown as { TextDecoder: typeof TextDecoder }).TextDecoder = TextDecoder;
 }
 
 Object.defineProperty(window, "matchMedia", {
   writable: true,
-  value: (query: string) => ({ // <-- Aquí se agrega ': string'
+  value: (query: string) => ({
     matches: false, // Puedes cambiar a 'true' para simular el modo oscuro en tus tests.
     media: query,
     onchange: null,

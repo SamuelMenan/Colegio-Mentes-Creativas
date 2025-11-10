@@ -48,6 +48,9 @@ module.exports = [
       // Reglas recomendadas de TS y React
       ...tsPlugin.configs.recommended.rules,
       ...reactPlugin.configs.recommended.rules,
+      // Con JSX runtime automático (React 17+), no se necesita React en scope
+      'react/react-in-jsx-scope': 'off',
+      'react/jsx-uses-react': 'off',
     },
     settings: {
       react: { version: 'detect' },

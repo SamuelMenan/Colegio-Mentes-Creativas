@@ -2,14 +2,13 @@ import { Routes, Route } from "react-router-dom";
 import Layout from "../components/Layout";
 
 // Views
-import HomePage from "../views/HomePage";
-// Eliminadas vistas no requeridas
+import Home from "../views/Home";
 
 export default function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
-        <Route index element={<HomePage />} />
+  <Route index element={<Home />} />
   {/* Solo ruta de inicio */}
       </Route>
     </Routes>
