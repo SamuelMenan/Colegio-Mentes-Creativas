@@ -7,7 +7,8 @@ interface SidebarItem {
 }
 
 const items: SidebarItem[] = [
-  { label: "Inicio", route: "/" }
+  { label: "Inicio", route: "/" },
+  { label: "Sistema Solar", route: "/sistema-solar" },
 ];
 
 export default function Sidebar() {
