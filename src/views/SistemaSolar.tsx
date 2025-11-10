@@ -33,6 +33,7 @@ interface PlanetData {
   duration: number; // duración de órbita en segundos (más cerca = más rápido)
   alt: string; // descripción visual
   imageUrl: string; // URL de la imagen real del planeta
+  descripcion?: string; // Descripción educativa mostrada en el modal
 }
 
 const PLANETAS: PlanetData[] = [
@@ -51,7 +52,8 @@ const PLANETAS: PlanetData[] = [
     orbitPercent: 0,
     duration: 0,
     alt: "Imagen real del Sol mostrando su superficie brillante",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg",
+    descripcion: "El Sol es nuestra estrella y la fuente principal de luz y calor. Su energía permite la vida en la Tierra y mantiene a los planetas girando a su alrededor."
   },
   {
     id: "mercurio",
@@ -72,6 +74,7 @@ const PLANETAS: PlanetData[] = [
     // Fuente: NASA/Wikipedia (dominio público)
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/8/88/Reprocessed_Mariner_10_image_of_Mercury.jpg",
+    descripcion: "Mercurio es pequeño y rocoso. Al estar tan cerca del Sol, tiene días muy largos y cambios de temperatura extremos."
   },
   {
     id: "venus",
@@ -91,6 +94,7 @@ const PLANETAS: PlanetData[] = [
     alt: "Imagen real de Venus, cubierta por nubes amarillas densas",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/a/a0/VenusDonMiguel.gif",
+    descripcion: "Venus es parecido en tamaño a la Tierra, pero su atmósfera es muy densa y caliente. Está cubierto por nubes espesas."
   },
   {
     id: "tierra",
@@ -109,6 +113,7 @@ const PLANETAS: PlanetData[] = [
     alt: "Fotografía real de la Tierra mostrando océanos y continentes",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg",
+    descripcion: "La Tierra es nuestro hogar. Tiene océanos, continentes y una atmósfera que protege y permite la vida."
   },
   {
     id: "marte",
@@ -128,6 +133,7 @@ const PLANETAS: PlanetData[] = [
     alt: "Imagen real de Marte, el planeta rojo",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg",
+    descripcion: "Marte es frío y polvoriento. Se le llama el planeta rojo y tiene volcanes y cañones gigantes."
   },
   {
     id: "jupiter",
@@ -146,6 +152,7 @@ const PLANETAS: PlanetData[] = [
     duration: 30,
     alt: "Imagen real de Júpiter con su Gran Mancha Roja",
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg",
+    descripcion: "Júpiter es un gigante gaseoso y el planeta más grande. Sus bandas de nubes y la Gran Mancha Roja son muy famosas."
   },
   {
     id: "saturno",
@@ -164,6 +171,7 @@ const PLANETAS: PlanetData[] = [
     alt: "Imagen real de Saturno con sus anillos",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg",
+    descripcion: "Saturno es un gigante gaseoso conocido por sus espectaculares anillos formados por hielo y rocas."
   },
   {
     id: "urano",
@@ -182,6 +190,7 @@ const PLANETAS: PlanetData[] = [
     duration: 46,
     alt: "Imagen real de Urano de tono verde azulado",
     imageUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg",
+    descripcion: "Urano es un gigante helado que gira casi tumbado. Su color verde azulado se debe al metano."
   },
   {
     id: "neptuno",
@@ -200,6 +209,7 @@ const PLANETAS: PlanetData[] = [
     alt: "Imagen real de Neptuno, azul profundo",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg",
+    descripcion: "Neptuno es un gigante helado muy lejano y ventoso, de color azul intenso."
   },
 ];
 
@@ -409,7 +419,7 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibl
               {planeta.nombre}
             </h2>
             <p id={descId} className="text-sm text-slate-300 mb-4">
-              Información esencial para estudiantes de primaria.
+              {planeta.descripcion ?? "Información esencial para estudiantes de primaria."}
             </p>
             <div className="flex items-center justify-center mb-4">
               <div
