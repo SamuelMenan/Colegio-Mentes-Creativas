@@ -7,9 +7,11 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 // - Accesibilidad: se definen etiquetas y colores con alto contraste.
 // ---------------------------------------------------------------------------
 type PlanetKey =
+  | "sol"
   | "mercurio"
   | "venus"
   | "tierra"
+  | "luna"
   | "marte"
   | "jupiter"
   | "saturno"
@@ -35,6 +37,23 @@ interface PlanetData {
 }
 
 const PLANETAS: PlanetData[] = [
+  {
+    id: "sol",
+    nombre: "Sol",
+    tamano: "109 × Tierra",
+    distancia: "Centro del sistema",
+    lunas: 0,
+    curiosidad: "Contiene más del 99% de la masa total del Sistema Solar.",
+    datoExtra: "Su energía proviene de la fusión nuclear de hidrógeno en helio.",
+    videoId: "zPgfsQoXRUk",
+    distanciaAU: 0, // centro
+    color: "bg-yellow-400",
+    sizePx: 120,
+    orbitPercent: 0,
+    duration: 0,
+    alt: "Imagen real del Sol mostrando su superficie brillante",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
+  },
   {
     id: "mercurio",
     nombre: "Mercurio",
@@ -91,6 +110,23 @@ const PLANETAS: PlanetData[] = [
     alt: "Fotografía real de la Tierra mostrando océanos y continentes",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg",
+  },
+  {
+    id: "luna",
+    nombre: "Luna",
+    tamano: "0.27 × Tierra",
+    distancia: "384,400 km de la Tierra",
+    lunas: 0,
+    curiosidad: "Influye en las mareas y estabiliza la inclinación terrestre.",
+    datoExtra: "Siempre nos muestra la misma cara debido a la rotación síncrona.",
+    videoId: "A3raAc08xqQ",
+    distanciaAU: 1.0, // aproximadamente órbita junto con la Tierra
+    color: "bg-gray-200",
+    sizePx: 8,
+    orbitPercent: 6, // órbita local alrededor de la Tierra (valor relativo pequeño)
+    duration: 6, // rotación rápida local
+    alt: "Imagen real de la Luna con cráteres",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg"
   },
   {
     id: "marte",
@@ -685,32 +721,40 @@ const SistemaSolar: React.FC = () => {
           {/* Fondo dentro del disco principal (gradiente y glow) */}
           <div className="absolute inset-0 rounded-full shadow-inner bg-gradient-to-br from-[#0b0f22] via-[#232b69] to-[#121a3a]" />
 
-          {/* Sol centrado con brillo y pulso */}
+          {/* Sol centrado con brillo, pulso y clic para información */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="relative">
-              <motion.div
-                aria-label="Imagen del Sol"
-                role="img"
-                className="rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,200,0,0.55)]"
-                style={{ width: 120, height: 120 }}
-                animate={shouldAnimate ? { scale: [1, 1.06, 1], boxShadow: [
-                  "0 0 40px rgba(255,200,0,0.45)",
-                  "0 0 60px rgba(255,220,100,0.7)",
-                  "0 0 40px rgba(255,200,0,0.45)",
-                ] } : undefined}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              <button
+                type="button"
+                onClick={() => { setSeleccionado(PLANETAS.find(p => p.id === 'sol') || null); playClick(); }}
+                className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-yellow-300"
+                aria-label="Mostrar información del Sol"
+                title="Sol"
               >
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
-                  alt="Imagen real del Sol"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      "https://upload.wikimedia.org/wikipedia/commons/0/02/Solar_prominence.jpg";
-                  }}
-                />
-              </motion.div>
+                <motion.div
+                  aria-label="Imagen del Sol"
+                  role="img"
+                  className="rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,200,0,0.55)]"
+                  style={{ width: 120, height: 120 }}
+                  animate={shouldAnimate ? { scale: [1, 1.06, 1], boxShadow: [
+                    "0 0 40px rgba(255,200,0,0.45)",
+                    "0 0 60px rgba(255,220,100,0.7)",
+                    "0 0 40px rgba(255,200,0,0.45)",
+                  ] } : undefined}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
+                    alt="Imagen real del Sol"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        "https://upload.wikimedia.org/wikipedia/commons/0/02/Solar_prominence.jpg";
+                    }}
+                  />
+                </motion.div>
+              </button>
               <motion.div
                 aria-hidden
                 className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40"
@@ -727,10 +771,11 @@ const SistemaSolar: React.FC = () => {
             aria-label="Lista de planetas del Sistema Solar"
             className="absolute inset-0"
           >
-            {PLANETAS.map((p) => {
+            {PLANETAS.filter(p => p.id !== 'sol' && p.id !== 'luna').map((p) => {
               const ringSize = `${getOrbitPercent(p)}%`;
               return (
                 <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration}>
+                  {/* Planeta */}
                   <PlanetButton
                     p={p}
                     isAccessibleMode={isAccessibleMode}
@@ -741,6 +786,31 @@ const SistemaSolar: React.FC = () => {
                       playClick();
                     }}
                   />
+                  {/* Órbita local de la Luna alrededor de la Tierra */}
+                  {p.id === 'tierra' && (
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 -top-0 -translate-y-1/2 pointer-events-none"
+                      style={{ width: 56, height: 56 }}
+                    >
+                      <div
+                        aria-hidden
+                        className="absolute inset-0 rounded-full border border-white/15"
+                      />
+                      <motion.div
+                        className="absolute inset-0"
+                        animate={shouldAnimate ? { rotate: 360 } : undefined}
+                        transition={shouldAnimate ? { duration: 6, ease: 'linear', repeat: Infinity } : undefined}
+                      >
+                        <PlanetButton
+                          p={PLANETAS.find(x => x.id === 'luna') as PlanetData}
+                          isAccessibleMode={isAccessibleMode}
+                          shouldAnimate={shouldAnimate}
+                          selected={seleccionado?.id === 'luna'}
+                          onSelect={(pl) => { setSeleccionado(pl); playClick(); }}
+                        />
+                      </motion.div>
+                    </div>
+                  )}
                 </OrbitRing>
               );
             })}
