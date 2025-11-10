@@ -396,7 +396,7 @@ const SistemaSolar: React.FC = () => {
 
                   {/* Contenedor rotatorio */}
                   <motion.div
-                    className="absolute"
+                    className="absolute pointer-events-none"
                     style={{ width: ringSize, height: ringSize }}
                     animate={shouldAnimate ? { rotate: 360 } : undefined}
                     transition={shouldAnimate ? { duration: p.duration, ease: "linear", repeat: Infinity } : undefined}
@@ -409,7 +409,7 @@ const SistemaSolar: React.FC = () => {
                       aria-describedby={labelId}
                       onClick={() => setSeleccionado(p)}
                       aria-roledescription="button"
-                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md ring-1 ring-white/30 hover:ring-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300`}
+                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md ring-1 ring-white/30 hover:ring-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300 pointer-events-auto z-10`}
                       style={{ width: p.sizePx, height: p.sizePx }}
                       whileHover={shouldAnimate ? { scale: 1.2 } : undefined}
                       whileFocus={shouldAnimate ? { scale: 1.2 } : undefined}
