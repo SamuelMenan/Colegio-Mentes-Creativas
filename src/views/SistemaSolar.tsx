@@ -28,6 +28,7 @@ interface PlanetData {
   orbitPercent: number; // diámetro del anillo de órbita en % del contenedor
   duration: number; // duración de órbita en segundos (más cerca = más rápido)
   alt: string; // descripción visual
+  imageUrl: string; // URL de la imagen real del planeta
 }
 
 const PLANETAS: PlanetData[] = [
@@ -43,7 +44,10 @@ const PLANETAS: PlanetData[] = [
     sizePx: 10,
     orbitPercent: 24,
     duration: 6,
-    alt: "Pequeña esfera gris representando a Mercurio",
+    alt: "Imagen real de Mercurio, planeta rocoso de color gris",
+    // Fuente: NASA/Wikipedia (dominio público)
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/2/2e/Mercury_in_true_color.jpg",
   },
   {
     id: "venus",
@@ -57,7 +61,9 @@ const PLANETAS: PlanetData[] = [
     sizePx: 14,
     orbitPercent: 32,
     duration: 10,
-    alt: "Esfera amarilla pálida representando a Venus",
+    alt: "Imagen real de Venus, cubierta por nubes amarillas densas",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg",
   },
   {
     id: "tierra",
@@ -70,7 +76,9 @@ const PLANETAS: PlanetData[] = [
     sizePx: 16,
     orbitPercent: 40,
     duration: 15,
-    alt: "Esfera azul que representa a la Tierra",
+    alt: "Fotografía real de la Tierra mostrando océanos y continentes",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg",
   },
   {
     id: "marte",
@@ -84,7 +92,9 @@ const PLANETAS: PlanetData[] = [
     sizePx: 12,
     orbitPercent: 48,
     duration: 18,
-    alt: "Esfera roja representando a Marte",
+    alt: "Imagen real de Marte, el planeta rojo",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg",
   },
   {
     id: "jupiter",
@@ -98,7 +108,8 @@ const PLANETAS: PlanetData[] = [
     sizePx: 26,
     orbitPercent: 60,
     duration: 30,
-    alt: "Esfera grande naranja representando a Júpiter",
+    alt: "Imagen real de Júpiter con su Gran Mancha Roja",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e2/Jupiter.jpg",
   },
   {
     id: "saturno",
@@ -111,7 +122,9 @@ const PLANETAS: PlanetData[] = [
     sizePx: 24,
     orbitPercent: 72,
     duration: 38,
-    alt: "Esfera amarilla representando a Saturno",
+    alt: "Imagen real de Saturno con sus anillos",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/c/c7/Saturn_during_Equinox.jpg",
   },
   {
     id: "urano",
@@ -125,7 +138,8 @@ const PLANETAS: PlanetData[] = [
     sizePx: 20,
     orbitPercent: 82,
     duration: 46,
-    alt: "Esfera verde-azulada representando a Urano",
+    alt: "Imagen real de Urano de tono verde azulado",
+    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3d/Uranus2.jpg",
   },
   {
     id: "neptuno",
@@ -138,7 +152,9 @@ const PLANETAS: PlanetData[] = [
     sizePx: 20,
     orbitPercent: 92,
     duration: 54,
-    alt: "Esfera índigo representando a Neptuno",
+    alt: "Imagen real de Neptuno, azul profundo",
+    imageUrl:
+      "https://upload.wikimedia.org/wikipedia/commons/5/56/Neptune_Full.jpg",
   },
 ];
 
@@ -238,13 +254,13 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose }) => {
 // - Accesibilidad: alto contraste, etiquetas aria, modo accesible para detener animaciones.
 const SistemaSolar: React.FC = () => {
   const [seleccionado, setSeleccionado] = useState<PlanetData | null>(null);
-  const [accesible, setAccesible] = useState(false);
+  const [isAccessibleMode, setIsAccessibleMode] = useState(false);
   const reduceMotion = useReducedMotion();
 
   // Si el usuario prefiere menos movimiento o modo accesible está activo, no animamos.
   const shouldAnimate = useMemo(
-    () => !accesible && !reduceMotion,
-    [accesible, reduceMotion]
+    () => !isAccessibleMode && !reduceMotion,
+    [isAccessibleMode, reduceMotion]
   );
 
   // Posiciones de estrellas estáticas –
@@ -300,13 +316,13 @@ const SistemaSolar: React.FC = () => {
         <div className="flex justify-end mb-3">
           <button
             type="button"
-            onClick={() => setAccesible((v) => !v)}
+            onClick={() => setIsAccessibleMode((v) => !v)}
             className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
-            aria-pressed={accesible}
+            aria-pressed={isAccessibleMode}
             aria-label="Activar modo accesible"
             title="Activar modo accesible"
           >
-            {accesible ? "Modo accesible: ON" : "Activar modo accesible"}
+            {isAccessibleMode ? "Modo accesible: ON" : "Activar modo accesible"}
           </button>
         </div>
 
@@ -322,17 +338,23 @@ const SistemaSolar: React.FC = () => {
           {/* Fondo dentro del disco principal (gradiente y glow) */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#0b0f22] via-[#232b69] to-[#121a3a] shadow-inner" />
 
-          {/* Sol centrado con brillo sutil */}
+          {/* Sol centrado con brillo sutil usando imagen real */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="relative">
               <motion.div
-                aria-label="Representación del Sol"
+                aria-label="Imagen del Sol"
                 role="img"
-                className="rounded-full bg-yellow-400 shadow-[0_0_40px_rgba(255,200,0,0.55)]"
+                className="rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,200,0,0.55)]"
                 style={{ width: 120, height: 120 }}
                 animate={shouldAnimate ? { scale: [1, 1.03, 1] } : undefined}
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              />
+              >
+                <img
+                  src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Sun_white.jpg"
+                  alt="Imagen real del Sol en luz blanca"
+                  className="w-full h-full object-cover"
+                />
+              </motion.div>
               <div
                 aria-hidden
                 className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40"
@@ -374,16 +396,23 @@ const SistemaSolar: React.FC = () => {
                       aria-label={`Planeta ${p.nombre}. Pulsa para ver detalles`}
                       aria-describedby={labelId}
                       onClick={() => setSeleccionado(p)}
-                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full ${p.color} shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300`}
+                      aria-roledescription="button"
+                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300`}
                       style={{ width: p.sizePx, height: p.sizePx }}
                       whileHover={shouldAnimate ? { scale: 1.2 } : undefined}
                       whileFocus={shouldAnimate ? { scale: 1.2 } : undefined}
                     >
+                      {/* Imagen real del planeta – accesible */}
+                      <img
+                        src={p.imageUrl}
+                        alt={p.alt}
+                        className="w-full h-full object-cover"
+                      />
                       {/* Tooltip visual – Aprendibilidad: nombre al pasar */}
                       <span
                         id={labelId}
                         className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 whitespace-nowrap rounded-md bg-black/70 text-white px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition ${
-                          accesible ? "opacity-100" : ""
+                          isAccessibleMode ? "opacity-100" : ""
                         }`}
                         role="tooltip"
                       >
