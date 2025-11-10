@@ -4,7 +4,7 @@ import { BookOpen, FlaskConical, Globe, Cpu, Brain, Palette } from "lucide-react
 
 type MenuItem = {
   label: string;
-  icon: React.ElementType;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   color: string; // tailwind bg color class
   aria: string;
 };
