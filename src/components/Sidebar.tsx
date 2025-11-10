@@ -1,3 +1,4 @@
+
 import { NavLink } from "react-router-dom";
 
 interface SidebarItem {
@@ -6,11 +7,7 @@ interface SidebarItem {
 }
 
 const items: SidebarItem[] = [
-  { label: "Inicio", route: "/" },
-  { label: "Three.js Demo", route: "/three" },
-  { label: "Responsive Layouts", route: "/layouts" },
-  { label: "Text-to-Speech", route: "/tts" },
-  { label: "Figuras Geometricas", route: "/three_2" },
+  { label: "Inicio", route: "/" }
 ];
 
 export default function Sidebar() {
