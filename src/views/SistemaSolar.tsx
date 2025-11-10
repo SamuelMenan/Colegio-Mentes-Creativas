@@ -47,7 +47,7 @@ const PLANETAS: PlanetData[] = [
     alt: "Imagen real de Mercurio, planeta rocoso de color gris",
     // Fuente: NASA/Wikipedia (dominio público)
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/2/2e/Mercury_in_true_color.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/8/88/Reprocessed_Mariner_10_image_of_Mercury.jpg",
   },
   {
     id: "venus",
@@ -356,7 +356,7 @@ const SistemaSolar: React.FC = () => {
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               >
                 <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white_paper.jpg"
+                  src="https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
                   alt="Imagen real del Sol"
                   className="w-full h-full object-cover"
                   loading="lazy"
