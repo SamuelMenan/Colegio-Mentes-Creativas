@@ -44,7 +44,7 @@ const PLANETAS: PlanetData[] = [
     curiosidad:
       "El planeta más cercano al Sol; su día dura casi dos meses terrestres.",
     datoExtra: "Sus temperaturas varían de -180°C a 430°C entre la noche y el día.",
-    videoId: undefined,
+  videoId: "MzsbpWPBc0s",
     distanciaAU: 0.39,
     color: "bg-gray-300",
     sizePx: 10,
@@ -64,7 +64,7 @@ const PLANETAS: PlanetData[] = [
     curiosidad:
       "Su atmósfera densa genera un efecto invernadero extremo, más caliente que Mercurio.",
     datoExtra: "Gira al revés (rotación retrógrada) respecto a la mayoría de planetas.",
-    videoId: undefined,
+  videoId: "ink28v2xlGY",
     distanciaAU: 0.72,
     color: "bg-yellow-300",
     sizePx: 14,
@@ -82,7 +82,7 @@ const PLANETAS: PlanetData[] = [
     lunas: 1,
     curiosidad: "Único planeta conocido con vida y agua líquida abundante.",
     datoExtra: "La atmósfera está compuesta principalmente de nitrógeno y oxígeno.",
-    videoId: undefined,
+  videoId: "vuW8YJ532g8",
     distanciaAU: 1.0,
     color: "bg-blue-500",
     sizePx: 16,
@@ -101,7 +101,7 @@ const PLANETAS: PlanetData[] = [
     curiosidad:
       "Llamado el planeta rojo por el óxido de hierro de su superficie.",
     datoExtra: "Tiene los volcanes más grandes del Sistema Solar, como Olympus Mons.",
-    videoId: undefined,
+  videoId: "RLky_HlOWRg",
     distanciaAU: 1.52,
     color: "bg-red-500",
     sizePx: 12,
@@ -120,7 +120,7 @@ const PLANETAS: PlanetData[] = [
     curiosidad:
       "El más grande; destaca su Gran Mancha Roja, una tormenta gigante.",
     datoExtra: "Emite más calor del que recibe del Sol debido a su compresión interna.",
-    videoId: undefined,
+  videoId: "02oQIvTCzNI",
     distanciaAU: 5.2,
     color: "bg-orange-400",
     sizePx: 26,
@@ -137,7 +137,7 @@ const PLANETAS: PlanetData[] = [
     lunas: 146,
     curiosidad: "Famoso por sus anillos visibles de hielo y roca.",
     datoExtra: "Su densidad es tan baja que, hipotéticamente, podría flotar en agua.",
-    videoId: undefined,
+  videoId: "SIxyMBjtPYw",
     distanciaAU: 9.58,
     color: "bg-amber-300",
     sizePx: 24,
@@ -156,7 +156,7 @@ const PLANETAS: PlanetData[] = [
     curiosidad:
       "Gira prácticamente de costado, generando estaciones muy largas.",
     datoExtra: "Su color verdoso se debe al metano en su atmósfera.",
-    videoId: undefined,
+  videoId: "dTU5TkW4U8E",
     distanciaAU: 19.2,
     color: "bg-teal-400",
     sizePx: 20,
@@ -173,7 +173,7 @@ const PLANETAS: PlanetData[] = [
     lunas: 14,
     curiosidad: "Tiene vientos supersónicos; el más lejano del Sol.",
     datoExtra: "Fue descubierto por predicción matemática antes de ser observado.",
-    videoId: undefined,
+  videoId: "5vcqxZz89Z4",
     distanciaAU: 30.05,
     color: "bg-indigo-500",
     sizePx: 20,
@@ -309,7 +309,10 @@ const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, should
           (e.currentTarget as HTMLImageElement).style.display = "none";
         }}
         style={{
-          scale: p.id === "saturno" || p.id === "urano" ? 1.30 : 1.18,
+          scale:
+            p.id === "saturno" ? 1.36 :
+            p.id === "neptuno" ? 1.34 :
+            p.id === "urano" ? 1.30 : 1.18,
           transformOrigin: "center",
         }}
         animate={shouldAnimate ? { rotate: 360 } : undefined}
@@ -401,7 +404,7 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibl
                   className="w-full h-full object-cover"
                   loading="lazy"
                   style={{
-                    transform: `scale(${planeta.id === 'saturno' || planeta.id === 'urano' ? 1.32 : 1.14})`,
+                    transform: `scale(${planeta.id === 'saturno' ? 1.40 : planeta.id === 'neptuno' ? 1.36 : planeta.id === 'urano' ? 1.32 : 1.14})`,
                     transformOrigin: 'center',
                   }}
                 />
