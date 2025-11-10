@@ -72,7 +72,7 @@ const PLANETAS: PlanetData[] = [
     duration: 10,
     alt: "Imagen real de Venus, cubierta por nubes amarillas densas",
     imageUrl:
-      "https://upload.wikimedia.org/wikipedia/commons/e/e5/Venus-real_color.jpg",
+      "https://upload.wikimedia.org/wikipedia/commons/a/a0/VenusDonMiguel.gif",
   },
   {
     id: "tierra",
@@ -308,6 +308,10 @@ const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, should
         onError={(e) => {
           (e.currentTarget as HTMLImageElement).style.display = "none";
         }}
+        style={{
+          scale: p.id === "saturno" || p.id === "urano" ? 1.30 : 1.18,
+          transformOrigin: "center",
+        }}
         animate={shouldAnimate ? { rotate: 360 } : undefined}
         transition={shouldAnimate ? { duration: 20 + (p.sizePx % 10), ease: "linear", repeat: Infinity } : undefined}
       />
@@ -385,60 +389,30 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibl
               Información esencial para estudiantes de primaria.
             </p>
             <div className="flex items-center justify-center mb-4">
-              {planeta.id === "saturno" ? (
-                <div
-                  role="img"
-                  aria-label="Saturno con planetas y anillos separados visualmente"
-                  className="relative flex items-center justify-center"
-                  style={{ width: 160, height: 120 }}
-                >
-                  {/* Anillos estilizados separados */}
+              <div
+                role="img"
+                aria-label={planeta.alt}
+                className="relative rounded-full overflow-hidden ring-2 ring-white/30 shadow-inner"
+                style={{ width: 112, height: 112 }}
+              >
+                <img
+                  src={planeta.imageUrl}
+                  alt={planeta.alt}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                  style={{
+                    transform: `scale(${planeta.id === 'saturno' || planeta.id === 'urano' ? 1.32 : 1.14})`,
+                    transformOrigin: 'center',
+                  }}
+                />
+                {planeta.id === "saturno" && (
                   <span
                     aria-hidden
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full"
-                    style={{
-                      width: 160,
-                      height: 36,
-                      background:
-                        "linear-gradient(to right, rgba(255,235,180,0.75), rgba(255,225,140,0.25), rgba(255,240,200,0.75))",
-                      boxShadow:
-                        "0 0 8px rgba(255,230,170,0.5), inset 0 0 6px rgba(140,100,40,0.35)",
-                      filter: "blur(0.3px)",
-                      transform: "rotate(14deg)",
-                    }}
+                    className="absolute inset-0 rounded-full border-4 border-amber-200/60"
+                    style={{ transform: "scale(1.38) rotate(15deg)" }}
                   />
-                  {/* Disco del planeta recortado para no mostrar los anillos dentro */}
-                  <div
-                    className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden ring-2 ring-white/30 shadow-inner bg-black"
-                    style={{ width: 112, height: 112 }}
-                  >
-                    <img
-                      src={planeta.imageUrl}
-                      alt={planeta.alt}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      style={{ clipPath: "circle(50% at 50% 50%)" }}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.opacity = "0";
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div
-                  role="img"
-                  aria-label={planeta.alt}
-                  className="relative rounded-full overflow-hidden ring-2 ring-white/30 shadow-inner"
-                  style={{ width: 112, height: 112 }}
-                >
-                  <img
-                    src={planeta.imageUrl}
-                    alt={planeta.alt}
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-              )}
+                )}
+              </div>
             </div>
             <ul className="space-y-2 text-sm">
               <li>
