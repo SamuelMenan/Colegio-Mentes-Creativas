@@ -11,7 +11,6 @@ type PlanetKey =
   | "mercurio"
   | "venus"
   | "tierra"
-  | "luna"
   | "marte"
   | "jupiter"
   | "saturno"
@@ -110,23 +109,6 @@ const PLANETAS: PlanetData[] = [
     alt: "Fotografía real de la Tierra mostrando océanos y continentes",
     imageUrl:
       "https://upload.wikimedia.org/wikipedia/commons/9/97/The_Earth_seen_from_Apollo_17.jpg",
-  },
-  {
-    id: "luna",
-    nombre: "Luna",
-    tamano: "0.27 × Tierra",
-    distancia: "384,400 km de la Tierra",
-    lunas: 0,
-    curiosidad: "Influye en las mareas y estabiliza la inclinación terrestre.",
-    datoExtra: "Siempre nos muestra la misma cara debido a la rotación síncrona.",
-    videoId: "A3raAc08xqQ",
-    distanciaAU: 1.0, // aproximadamente órbita junto con la Tierra
-    color: "bg-gray-200",
-    sizePx: 8,
-    orbitPercent: 6, // órbita local alrededor de la Tierra (valor relativo pequeño)
-    duration: 6, // rotación rápida local
-    alt: "Imagen real de la Luna con cráteres",
-    imageUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e1/FullMoon2010.jpg"
   },
   {
     id: "marte",
@@ -458,7 +440,7 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibl
                 <strong>Tamaño:</strong> {planeta.tamano}
               </li>
               <li>
-                <strong>{planeta.id === 'luna' ? 'Distancia a la Tierra' : 'Distancia al Sol'}:</strong> {planeta.distancia}
+                <strong>Distancia al Sol:</strong> {planeta.distancia}
               </li>
               <li>
                 <strong>Lunas:</strong> {planeta.lunas}
@@ -771,7 +753,7 @@ const SistemaSolar: React.FC = () => {
             aria-label="Lista de planetas del Sistema Solar"
             className="absolute inset-0"
           >
-            {PLANETAS.filter(p => p.id !== 'sol' && p.id !== 'luna').map((p) => {
+            {PLANETAS.filter(p => p.id !== 'sol').map((p) => {
               const ringSize = `${getOrbitPercent(p)}%`;
               return (
                 <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration}>
@@ -786,31 +768,6 @@ const SistemaSolar: React.FC = () => {
                       playClick();
                     }}
                   />
-                  {/* Órbita local de la Luna alrededor de la Tierra */}
-                  {p.id === 'tierra' && (
-                    <div
-                      className="absolute left-1/2 -translate-x-1/2 -top-0 -translate-y-1/2"
-                      style={{ width: 56, height: 56 }}
-                    >
-                      <div
-                        aria-hidden
-                        className="absolute inset-0 rounded-full border border-white/15 pointer-events-none"
-                      />
-                      <motion.div
-                        className="absolute inset-0"
-                        animate={shouldAnimate ? { rotate: 360 } : undefined}
-                        transition={shouldAnimate ? { duration: 6, ease: 'linear', repeat: Infinity } : undefined}
-                      >
-                        <PlanetButton
-                          p={PLANETAS.find(x => x.id === 'luna') as PlanetData}
-                          isAccessibleMode={isAccessibleMode}
-                          shouldAnimate={shouldAnimate}
-                          selected={seleccionado?.id === 'luna'}
-                          onSelect={(pl) => { setSeleccionado(pl); playClick(); }}
-                        />
-                      </motion.div>
-                    </div>
-                  )}
                 </OrbitRing>
               );
             })}
