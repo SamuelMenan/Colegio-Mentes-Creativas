@@ -207,9 +207,15 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose }) => {
               <div
                 role="img"
                 aria-label={planeta.alt}
-                className={`relative rounded-full ${planeta.color} shadow-inner`}
+                className="relative rounded-full overflow-hidden ring-2 ring-white/30 shadow-inner"
                 style={{ width: 112, height: 112 }}
               >
+                <img
+                  src={planeta.imageUrl}
+                  alt={planeta.alt}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
                 {planeta.id === "saturno" && (
                   <span
                     aria-hidden
@@ -350,9 +356,15 @@ const SistemaSolar: React.FC = () => {
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               >
                 <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/4/4a/Sun_white.jpg"
-                  alt="Imagen real del Sol en luz blanca"
+                  src="https://upload.wikimedia.org/wikipedia/commons/4/4c/Sun_white_paper.jpg"
+                  alt="Imagen real del Sol"
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  onError={(e) => {
+                    // Fallback en caso de CORS o 404
+                    (e.currentTarget as HTMLImageElement).src =
+                      "https://upload.wikimedia.org/wikipedia/commons/0/02/Solar_prominence.jpg";
+                  }}
                 />
               </motion.div>
               <div
@@ -378,7 +390,7 @@ const SistemaSolar: React.FC = () => {
                   {/* Anillo de órbita – semitransparente para referencia visual */}
                   <div
                     aria-hidden
-                    className="rounded-full border border-white/15"
+                    className="pointer-events-none rounded-full border border-white/15"
                     style={{ width: ringSize, height: ringSize }}
                   />
 
@@ -397,7 +409,7 @@ const SistemaSolar: React.FC = () => {
                       aria-describedby={labelId}
                       onClick={() => setSeleccionado(p)}
                       aria-roledescription="button"
-                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300`}
+                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md ring-1 ring-white/30 hover:ring-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300`}
                       style={{ width: p.sizePx, height: p.sizePx }}
                       whileHover={shouldAnimate ? { scale: 1.2 } : undefined}
                       whileFocus={shouldAnimate ? { scale: 1.2 } : undefined}
@@ -407,6 +419,12 @@ const SistemaSolar: React.FC = () => {
                         src={p.imageUrl}
                         alt={p.alt}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        title={`Este es ${p.nombre}`}
+                        onError={(e) => {
+                          // Fallback genérico si una imagen no carga
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                        }}
                       />
                       {/* Tooltip visual – Aprendibilidad: nombre al pasar */}
                       <span
