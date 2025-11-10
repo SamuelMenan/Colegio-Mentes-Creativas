@@ -458,7 +458,7 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibl
                 <strong>Tamaño:</strong> {planeta.tamano}
               </li>
               <li>
-                <strong>Distancia al Sol:</strong> {planeta.distancia}
+                <strong>{planeta.id === 'luna' ? 'Distancia a la Tierra' : 'Distancia al Sol'}:</strong> {planeta.distancia}
               </li>
               <li>
                 <strong>Lunas:</strong> {planeta.lunas}
@@ -757,7 +757,7 @@ const SistemaSolar: React.FC = () => {
               </button>
               <motion.div
                 aria-hidden
-                className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40"
+                className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40 pointer-events-none"
                 style={{ transform: "scale(1.4)" }}
                 animate={shouldAnimate ? { opacity: [0.4, 0.7, 0.4] } : undefined}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
@@ -789,12 +789,12 @@ const SistemaSolar: React.FC = () => {
                   {/* Órbita local de la Luna alrededor de la Tierra */}
                   {p.id === 'tierra' && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 -top-0 -translate-y-1/2 pointer-events-none"
+                      className="absolute left-1/2 -translate-x-1/2 -top-0 -translate-y-1/2"
                       style={{ width: 56, height: 56 }}
                     >
                       <div
                         aria-hidden
-                        className="absolute inset-0 rounded-full border border-white/15"
+                        className="absolute inset-0 rounded-full border border-white/15 pointer-events-none"
                       />
                       <motion.div
                         className="absolute inset-0"
