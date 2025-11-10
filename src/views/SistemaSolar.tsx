@@ -1,19 +1,33 @@
-import React, { useState, useId } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useMemo, useState, useId } from "react";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 // ---------------------------------------------------------------------------
-// Datos de planetas (simplificados) – Contribuye a aprendibilidad presentando
-// información estructurada y consistente para cada ítem interactivo.
+// Datos y utilidades
+// - Aprendibilidad: datos consistentes ayudan a comparar planetas.
+// - Accesibilidad: se definen etiquetas y colores con alto contraste.
 // ---------------------------------------------------------------------------
+type PlanetKey =
+  | "mercurio"
+  | "venus"
+  | "tierra"
+  | "marte"
+  | "jupiter"
+  | "saturno"
+  | "urano"
+  | "neptuno";
+
 interface PlanetData {
-  id: string;
+  id: PlanetKey;
   nombre: string;
-  tamano: string; // Diámetro relativo
-  distancia: string; // Distancia promedio al Sol
+  tamano: string; // Relación de diámetros aprox vs. Tierra
+  distancia: string; // Distancia media al Sol
   lunas: number;
   curiosidad: string;
-  color: string; // Tailwind color para la "esfera"
-  alt: string; // Texto alternativo accesible
+  color: string; // Tailwind bg-* para el planeta
+  sizePx: number; // tamaño del planeta en px (relativo y legible)
+  orbitPercent: number; // diámetro del anillo de órbita en % del contenedor
+  duration: number; // duración de órbita en segundos (más cerca = más rápido)
+  alt: string; // descripción visual
 }
 
 const PLANETAS: PlanetData[] = [
@@ -23,9 +37,13 @@ const PLANETAS: PlanetData[] = [
     tamano: "0.38 × Tierra",
     distancia: "58 M km",
     lunas: 0,
-    curiosidad: "Es el planeta más cercano al Sol y tiene extremos de temperatura.",
-    color: "bg-gray-400",
-    alt: "Esfera gris que representa a Mercurio",
+    curiosidad:
+      "El planeta más cercano al Sol; su día dura casi dos meses terrestres.",
+    color: "bg-gray-300",
+    sizePx: 10,
+    orbitPercent: 24,
+    duration: 6,
+    alt: "Pequeña esfera gris representando a Mercurio",
   },
   {
     id: "venus",
@@ -33,9 +51,13 @@ const PLANETAS: PlanetData[] = [
     tamano: "0.95 × Tierra",
     distancia: "108 M km",
     lunas: 0,
-    curiosidad: "Su atmósfera provoca un efecto invernadero intenso, más caliente que Mercurio.",
+    curiosidad:
+      "Su atmósfera densa genera un efecto invernadero extremo, más caliente que Mercurio.",
     color: "bg-yellow-300",
-    alt: "Esfera amarillo pálido que representa a Venus",
+    sizePx: 14,
+    orbitPercent: 32,
+    duration: 10,
+    alt: "Esfera amarilla pálida representando a Venus",
   },
   {
     id: "tierra",
@@ -43,9 +65,12 @@ const PLANETAS: PlanetData[] = [
     tamano: "1.00 × Tierra",
     distancia: "150 M km",
     lunas: 1,
-    curiosidad: "Único planeta conocido con vida y agua líquida en abundancia.",
+    curiosidad: "Único planeta conocido con vida y agua líquida abundante.",
     color: "bg-blue-500",
-    alt: "Esfera azul con tonos verdes que representa a la Tierra",
+    sizePx: 16,
+    orbitPercent: 40,
+    duration: 15,
+    alt: "Esfera azul que representa a la Tierra",
   },
   {
     id: "marte",
@@ -53,9 +78,13 @@ const PLANETAS: PlanetData[] = [
     tamano: "0.53 × Tierra",
     distancia: "228 M km",
     lunas: 2,
-    curiosidad: "Conocido como el planeta rojo por su superficie rica en óxido de hierro.",
+    curiosidad:
+      "Llamado el planeta rojo por el óxido de hierro de su superficie.",
     color: "bg-red-500",
-    alt: "Esfera roja que representa a Marte",
+    sizePx: 12,
+    orbitPercent: 48,
+    duration: 18,
+    alt: "Esfera roja representando a Marte",
   },
   {
     id: "jupiter",
@@ -63,9 +92,13 @@ const PLANETAS: PlanetData[] = [
     tamano: "11.2 × Tierra",
     distancia: "778 M km",
     lunas: 95,
-    curiosidad: "El planeta más grande del sistema solar con una gran mancha roja (tormenta gigante).",
+    curiosidad:
+      "El más grande; destaca su Gran Mancha Roja, una tormenta gigante.",
     color: "bg-orange-400",
-    alt: "Esfera grande naranja que representa a Júpiter",
+    sizePx: 26,
+    orbitPercent: 60,
+    duration: 30,
+    alt: "Esfera grande naranja representando a Júpiter",
   },
   {
     id: "saturno",
@@ -73,9 +106,12 @@ const PLANETAS: PlanetData[] = [
     tamano: "9.45 × Tierra",
     distancia: "1.43 B km",
     lunas: 146,
-    curiosidad: "Famoso por sus anillos visibles formados por hielo y roca.",
+    curiosidad: "Famoso por sus anillos visibles de hielo y roca.",
     color: "bg-amber-300",
-    alt: "Esfera amarilla con anillo que representa a Saturno",
+    sizePx: 24,
+    orbitPercent: 72,
+    duration: 38,
+    alt: "Esfera amarilla representando a Saturno",
   },
   {
     id: "urano",
@@ -83,9 +119,13 @@ const PLANETAS: PlanetData[] = [
     tamano: "4.00 × Tierra",
     distancia: "2.87 B km",
     lunas: 27,
-    curiosidad: "Gira inclinado de costado, lo que causa estaciones extremas.",
+    curiosidad:
+      "Gira prácticamente de costado, generando estaciones muy largas.",
     color: "bg-teal-400",
-    alt: "Esfera azul verdosa que representa a Urano",
+    sizePx: 20,
+    orbitPercent: 82,
+    duration: 46,
+    alt: "Esfera verde-azulada representando a Urano",
   },
   {
     id: "neptuno",
@@ -93,13 +133,18 @@ const PLANETAS: PlanetData[] = [
     tamano: "3.88 × Tierra",
     distancia: "4.50 B km",
     lunas: 14,
-    curiosidad: "Tiene vientos supersónicos y es el más lejano del Sol.",
+    curiosidad: "Tiene vientos supersónicos; el más lejano del Sol.",
     color: "bg-indigo-500",
-    alt: "Esfera índigo que representa a Neptuno",
+    sizePx: 20,
+    orbitPercent: 92,
+    duration: 54,
+    alt: "Esfera índigo representando a Neptuno",
   },
 ];
 
-// Modal accesible – Aprendibilidad: muestra info clara y estructurada.
+// Modal accesible con animación de zoom –
+// - Aprendibilidad: estructura clara con lista de datos.
+// - Accesibilidad: role="dialog", labels, contraste alto.
 interface PlanetModalProps {
   planeta: PlanetData | null;
   onClose: () => void;
@@ -121,175 +166,252 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose }) => {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
         >
-          {/* Fondo semitransparente */}
           <motion.div
-            className="absolute inset-0 bg-black/60"
+            className="absolute inset-0 bg-black/70"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
             aria-label="Cerrar modal"
           />
-          {/* Contenido del modal */}
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 150, damping: 18 }}
-              className="relative w-full max-w-md rounded-2xl bg-slate-900 text-white shadow-lg border border-slate-700 p-6"
-            >
-              <h2 id={labelId} className="text-2xl font-bold mb-2">
-                {planeta.nombre}
-              </h2>
-              <p id={descId} className="text-sm text-slate-300 mb-4">
-                Datos básicos y curiosidad sobre {planeta.nombre}.
-              </p>
-              {/* Imagen descriptiva (placeholder – aprendibilidad y accesibilidad) */}
-              <div className="flex items-center justify-center mb-4">
-                <div
-                  role="img"
-                  aria-label={planeta.alt}
-                  className={`w-28 h-28 rounded-full ${planeta.color} flex items-center justify-center shadow-inner relative`}
-                >
-                  {/* Si fuese Saturno podríamos simular anillo */}
-                  {planeta.id === "saturno" && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-0 rounded-full border-4 border-amber-200 animate-pulse"
-                    />
-                  )}
-                </div>
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.92, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 160, damping: 18 }}
+            className="relative w-full max-w-md rounded-2xl bg-slate-900 text-white shadow-xl border border-slate-700 p-6"
+          >
+            <h2 id={labelId} className="text-2xl font-extrabold mb-1">
+              {planeta.nombre}
+            </h2>
+            <p id={descId} className="text-sm text-slate-300 mb-4">
+              Información esencial para estudiantes de primaria.
+            </p>
+            <div className="flex items-center justify-center mb-4">
+              <div
+                role="img"
+                aria-label={planeta.alt}
+                className={`relative rounded-full ${planeta.color} shadow-inner`}
+                style={{ width: 112, height: 112 }}
+              >
+                {planeta.id === "saturno" && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full border-4 border-amber-200/60"
+                    style={{ transform: "scale(1.4) rotate(15deg)" }}
+                  />
+                )}
               </div>
-              <ul className="space-y-2 text-sm">
-                <li><strong>Tamaño:</strong> {planeta.tamano}</li>
-                <li><strong>Distancia al Sol:</strong> {planeta.distancia}</li>
-                <li><strong>Número de lunas:</strong> {planeta.lunas}</li>
-                <li><strong>Curiosidad:</strong> {planeta.curiosidad}</li>
-              </ul>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400 transition"
-                  aria-label="Cerrar información del planeta"
-                >
-                  Cerrar
-                </button>
-              </div>
-            </motion.div>
+            </div>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <strong>Tamaño:</strong> {planeta.tamano}
+              </li>
+              <li>
+                <strong>Distancia al Sol:</strong> {planeta.distancia}
+              </li>
+              <li>
+                <strong>Lunas:</strong> {planeta.lunas}
+              </li>
+              <li>
+                <strong>Curiosidad:</strong> {planeta.curiosidad}
+              </li>
+            </ul>
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400 transition"
+                aria-label="Cerrar información del planeta"
+              >
+                Cerrar
+              </button>
+            </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 };
 
-// Componente principal Sistema Solar Interactivo.
-// Cumple con Aprendibilidad (layout claro, instrucciones) y Accesibilidad (roles, aria, contraste).
+// Componente principal: sistema solar centrado con órbitas animadas
+// - Aprendibilidad: instrucciones claras y diseño consistente.
+// - Accesibilidad: alto contraste, etiquetas aria, modo accesible para detener animaciones.
 const SistemaSolar: React.FC = () => {
   const [seleccionado, setSeleccionado] = useState<PlanetData | null>(null);
+  const [accesible, setAccesible] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  // Si el usuario prefiere menos movimiento o modo accesible está activo, no animamos.
+  const shouldAnimate = useMemo(
+    () => !accesible && !reduceMotion,
+    [accesible, reduceMotion]
+  );
+
+  // Posiciones de estrellas estáticas –
+  // Aprendibilidad: refuerza el contexto espacial; Accesibilidad: decorativo aria-hidden.
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 70 }, (_, i) => ({
+        key: i,
+        top: (i * 37) % 100, // valores pseudo-determinísticos
+        left: (i * 53) % 100,
+        size: (i % 3) + 1,
+        opacity: 0.4 + ((i * 7) % 6) / 10,
+      })),
+    []
+  );
 
   return (
-    <div className="py-8 px-4 max-w-6xl mx-auto">
-      {/* Encabezado accesible */}
-      <header className="text-center mb-8">
-        <motion.h1
-          className="text-3xl md:text-5xl font-extrabold text-yellow-300 drop-shadow [text-shadow:0_0_8px_rgba(255,255,255,0.3)]"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          Sistema Solar Interactivo
-        </motion.h1>
-        <motion.p
-          className="mt-2 text-lg md:text-xl text-slate-100 max-w-2xl mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          Aprende sobre los planetas: haz clic en un planeta para conocer datos y curiosidades.
-        </motion.p>
-      </header>
+    <div className="min-h-[calc(100dvh-6rem)] py-8 px-4 grid place-items-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1020] via-[#101836] to-[#060912] relative overflow-hidden">
+      {/* Capa de estrellas */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        {stars.map((s) => (
+          <span
+            key={s.key}
+            className="absolute rounded-full bg-white"
+            style={{
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              width: s.size,
+              height: s.size,
+              opacity: s.opacity,
+              boxShadow: "0 0 6px rgba(255,255,255,0.3)",
+            }}
+          />
+        ))}
+      </div>
 
-      {/* Introducción educativa – Aprendibilidad: texto contextual breve */}
-      <section aria-labelledby="intro" className="mb-10">
-        <h2 id="intro" className="sr-only">Introducción educativa</h2>
-        <p className="leading-relaxed text-slate-200 text-base md:text-lg">
-          El <strong>Sistema Solar</strong> está formado por el Sol y los cuerpos que giran a su alrededor: planetas, lunas, asteroides y cometas. Cada planeta es único en tamaño, temperatura y composición. Explorarlos fomenta la curiosidad y el pensamiento científico.
-        </p>
-      </section>
-
-      {/* Zona interactiva – planetas orbitando */}
-      <section aria-labelledby="zona-interactiva" className="mb-12">
-        <h2 id="zona-interactiva" className="text-xl font-bold text-slate-100 mb-4">Haz clic en un planeta para conocerlo</h2>
-        <div
-          role="list"
-          aria-label="Lista de planetas del Sistema Solar"
-          className="relative mx-auto w-full max-w-3xl aspect-square bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 rounded-full overflow-hidden shadow-inner"
-        >
-          {/* Sol central */}
-          <div
-            role="img"
-            aria-label="Representación del Sol"
-            className="absolute inset-0 flex items-center justify-center"
+      <div className="w-full max-w-[900px]">
+        {/* Encabezado */}
+        <header className="text-center mb-6">
+          <motion.h1
+            className="text-3xl md:text-5xl font-extrabold text-yellow-300 drop-shadow [text-shadow:0_0_8px_rgba(255,255,255,0.25)]"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            <div className="w-28 h-28 md:w-36 md:h-36 rounded-full bg-yellow-400 shadow-lg animate-pulse" />
-          </div>
-          {PLANETAS.map((p, i) => {
-            const angle = (i / PLANETAS.length) * Math.PI * 2;
-            const radius = 140; // radio base
-            const x = Math.cos(angle) * radius + 220; // ajustes para centrar
-            const y = Math.sin(angle) * radius + 220;
-            return (
-              <motion.button
-                key={p.id}
-                type="button"
-                role="listitem"
-                aria-label={`Planeta ${p.nombre}. Pulsa para ver detalles`}
-                onClick={() => setSeleccionado(p)}
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                whileHover={{ scale: 1.15 }}
-                whileFocus={{ scale: 1.15 }}
-                className={`absolute -translate-x-1/2 -translate-y-1/2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300 rounded-full ${p.color} shadow-md flex items-center justify-center text-xs font-bold text-white`}
-                style={{ left: x, top: y, width: 48, height: 48 }}
-              >
-                <span aria-hidden="true">{p.nombre.charAt(0)}</span>
-              </motion.button>
-            );
-          })}
-        </div>
-      </section>
+            Sistema Solar Interactivo
+          </motion.h1>
+          <p className="mt-2 text-lg md:text-xl text-slate-100 text-center">
+            Haz clic en un planeta para conocerlo
+          </p>
+        </header>
 
-      {/* Zona multimedia – video accesible con subtítulos (placeholder) */}
-      <section aria-labelledby="video-educativo" className="mb-12">
-        <h2 id="video-educativo" className="text-xl font-bold text-slate-100 mb-4">Video educativo</h2>
-        <p className="text-slate-300 mb-4">Observa este video para reforzar lo aprendido. Incluye subtítulos para accesibilidad.</p>
-        <div className="max-w-3xl mx-auto">
-          <div className="aspect-video w-full rounded-xl overflow-hidden ring-2 ring-indigo-400 bg-black flex items-center justify-center text-slate-200 text-center p-6">
-            {/* Placeholder: podría integrarse un iframe YouTube con track de subtítulos */}
-            <p className="text-sm md:text-base">[Video educativo con subtítulos próximamente]</p>
-          </div>
+        {/* Controles de accesibilidad */}
+        <div className="flex justify-end mb-3">
           <button
             type="button"
-            aria-label="Ver Video Educativo"
-            className="mt-4 px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 focus-visible:ring-offset-2"
+            onClick={() => setAccesible((v) => !v)}
+            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
+            aria-pressed={accesible}
+            aria-label="Activar modo accesible"
+            title="Activar modo accesible"
           >
-            Ver Video Educativo
+            {accesible ? "Modo accesible: ON" : "Activar modo accesible"}
           </button>
         </div>
-      </section>
 
-      {/* Pie de sección */}
-      <footer className="mt-8 text-center">
-        <a
-          href="/"
-          className="text-indigo-300 hover:text-indigo-200 underline"
-          aria-label="Volver al menú principal"
+        {/* Sistema solar centrado */}
+        <section
+          aria-labelledby="zona-interactiva"
+          className="relative mx-auto w-full aspect-square max-w-[900px] rounded-full"
         >
-          Volver al menú principal
-        </a>
-      </footer>
+          <h2 id="zona-interactiva" className="sr-only">
+            Zona interactiva del sistema solar
+          </h2>
 
-      {/* Modal de planeta */}
+          {/* Fondo dentro del disco principal (gradiente y glow) */}
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#0b0f22] via-[#232b69] to-[#121a3a] shadow-inner" />
+
+          {/* Sol centrado con brillo sutil */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="relative">
+              <motion.div
+                aria-label="Representación del Sol"
+                role="img"
+                className="rounded-full bg-yellow-400 shadow-[0_0_40px_rgba(255,200,0,0.55)]"
+                style={{ width: 120, height: 120 }}
+                animate={shouldAnimate ? { scale: [1, 1.03, 1] } : undefined}
+                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              />
+              <div
+                aria-hidden
+                className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40"
+                style={{ transform: "scale(1.4)" }}
+              />
+            </div>
+          </div>
+
+          {/* Lista de planetas (rol list) */}
+          <div
+            role="list"
+            aria-label="Lista de planetas del Sistema Solar"
+            className="absolute inset-0"
+          >
+            {PLANETAS.map((p) => {
+              // Componente órbita: un anillo visible y un contenedor que rota
+              const ringSize = `${p.orbitPercent}%`; // diámetro del anillo
+              const labelId = `label-${p.id}`;
+              return (
+                <div key={p.id} className="absolute inset-0 flex items-center justify-center">
+                  {/* Anillo de órbita – semitransparente para referencia visual */}
+                  <div
+                    aria-hidden
+                    className="rounded-full border border-white/15"
+                    style={{ width: ringSize, height: ringSize }}
+                  />
+
+                  {/* Contenedor rotatorio */}
+                  <motion.div
+                    className="absolute"
+                    style={{ width: ringSize, height: ringSize }}
+                    animate={shouldAnimate ? { rotate: 360 } : undefined}
+                    transition={shouldAnimate ? { duration: p.duration, ease: "linear", repeat: Infinity } : undefined}
+                  >
+                    {/* Botón planeta en el borde superior */}
+                    <motion.button
+                      type="button"
+                      role="listitem"
+                      aria-label={`Planeta ${p.nombre}. Pulsa para ver detalles`}
+                      aria-describedby={labelId}
+                      onClick={() => setSeleccionado(p)}
+                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full ${p.color} shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300`}
+                      style={{ width: p.sizePx, height: p.sizePx }}
+                      whileHover={shouldAnimate ? { scale: 1.2 } : undefined}
+                      whileFocus={shouldAnimate ? { scale: 1.2 } : undefined}
+                    >
+                      {/* Tooltip visual – Aprendibilidad: nombre al pasar */}
+                      <span
+                        id={labelId}
+                        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 whitespace-nowrap rounded-md bg-black/70 text-white px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition ${
+                          accesible ? "opacity-100" : ""
+                        }`}
+                        role="tooltip"
+                      >
+                        {p.nombre}
+                      </span>
+                      {/* Texto para lectores de pantalla */}
+                      <span className="sr-only">{p.nombre}</span>
+                    </motion.button>
+                  </motion.div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Pie: enlace simple de retorno */}
+        <footer className="mt-8 text-center">
+          <a
+            href="/"
+            className="text-indigo-300 hover:text-indigo-200 underline"
+            aria-label="Volver al menú principal"
+          >
+            Volver al menú principal
+          </a>
+        </footer>
+      </div>
+
+      {/* Modal del planeta */}
       <PlanetModal planeta={seleccionado} onClose={() => setSeleccionado(null)} />
     </div>
   );
