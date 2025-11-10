@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useId } from "react";
+import React, { useMemo, useState, useId, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,9 @@ interface PlanetData {
   distancia: string; // Distancia media al Sol
   lunas: number;
   curiosidad: string;
+  datoExtra?: string; // Dato adicional para "¿Sabías que...?"
+  videoId?: string; // ID opcional de YouTube
+  distanciaAU?: number; // Distancia media en UA para modo realista
   color: string; // Tailwind bg-* para el planeta
   sizePx: number; // tamaño del planeta en px (relativo y legible)
   orbitPercent: number; // diámetro del anillo de órbita en % del contenedor
@@ -40,6 +43,9 @@ const PLANETAS: PlanetData[] = [
     lunas: 0,
     curiosidad:
       "El planeta más cercano al Sol; su día dura casi dos meses terrestres.",
+    datoExtra: "Sus temperaturas varían de -180°C a 430°C entre la noche y el día.",
+    videoId: undefined,
+    distanciaAU: 0.39,
     color: "bg-gray-300",
     sizePx: 10,
     orbitPercent: 24,
@@ -57,6 +63,9 @@ const PLANETAS: PlanetData[] = [
     lunas: 0,
     curiosidad:
       "Su atmósfera densa genera un efecto invernadero extremo, más caliente que Mercurio.",
+    datoExtra: "Gira al revés (rotación retrógrada) respecto a la mayoría de planetas.",
+    videoId: undefined,
+    distanciaAU: 0.72,
     color: "bg-yellow-300",
     sizePx: 14,
     orbitPercent: 32,
@@ -72,6 +81,9 @@ const PLANETAS: PlanetData[] = [
     distancia: "150 M km",
     lunas: 1,
     curiosidad: "Único planeta conocido con vida y agua líquida abundante.",
+    datoExtra: "La atmósfera está compuesta principalmente de nitrógeno y oxígeno.",
+    videoId: undefined,
+    distanciaAU: 1.0,
     color: "bg-blue-500",
     sizePx: 16,
     orbitPercent: 40,
@@ -88,6 +100,9 @@ const PLANETAS: PlanetData[] = [
     lunas: 2,
     curiosidad:
       "Llamado el planeta rojo por el óxido de hierro de su superficie.",
+    datoExtra: "Tiene los volcanes más grandes del Sistema Solar, como Olympus Mons.",
+    videoId: undefined,
+    distanciaAU: 1.52,
     color: "bg-red-500",
     sizePx: 12,
     orbitPercent: 48,
@@ -104,6 +119,9 @@ const PLANETAS: PlanetData[] = [
     lunas: 95,
     curiosidad:
       "El más grande; destaca su Gran Mancha Roja, una tormenta gigante.",
+    datoExtra: "Emite más calor del que recibe del Sol debido a su compresión interna.",
+    videoId: undefined,
+    distanciaAU: 5.2,
     color: "bg-orange-400",
     sizePx: 26,
     orbitPercent: 60,
@@ -118,6 +136,9 @@ const PLANETAS: PlanetData[] = [
     distancia: "1.43 B km",
     lunas: 146,
     curiosidad: "Famoso por sus anillos visibles de hielo y roca.",
+    datoExtra: "Su densidad es tan baja que, hipotéticamente, podría flotar en agua.",
+    videoId: undefined,
+    distanciaAU: 9.58,
     color: "bg-amber-300",
     sizePx: 24,
     orbitPercent: 72,
@@ -134,6 +155,9 @@ const PLANETAS: PlanetData[] = [
     lunas: 27,
     curiosidad:
       "Gira prácticamente de costado, generando estaciones muy largas.",
+    datoExtra: "Su color verdoso se debe al metano en su atmósfera.",
+    videoId: undefined,
+    distanciaAU: 19.2,
     color: "bg-teal-400",
     sizePx: 20,
     orbitPercent: 82,
@@ -148,6 +172,9 @@ const PLANETAS: PlanetData[] = [
     distancia: "4.50 B km",
     lunas: 14,
     curiosidad: "Tiene vientos supersónicos; el más lejano del Sol.",
+    datoExtra: "Fue descubierto por predicción matemática antes de ser observado.",
+    videoId: undefined,
+    distanciaAU: 30.05,
     color: "bg-indigo-500",
     sizePx: 20,
     orbitPercent: 92,
@@ -158,17 +185,171 @@ const PLANETAS: PlanetData[] = [
   },
 ];
 
+// -------------------------------------------------------------
+// Subcomponentes reutilizables
+// -------------------------------------------------------------
+
+type SolarBackgroundProps = {
+  stars: { key: number; top: number; left: number; size: number; opacity: number }[];
+  animateBg: boolean;
+  theme: "dark" | "light";
+};
+
+const SolarBackground: React.FC<SolarBackgroundProps> = ({ stars, animateBg, theme }) => {
+  return (
+    <div className={`pointer-events-none absolute inset-0 ${theme === "light" ? "opacity-95" : ""}`}>
+      <motion.div
+        className="absolute inset-0"
+        aria-hidden
+        animate={animateBg ? { x: [0, -6, 0], y: [0, 4, 0] } : undefined}
+        transition={animateBg ? { duration: 30, repeat: Infinity, ease: "easeInOut" } : undefined}
+      >
+        {stars.map((s) => (
+          <span
+            key={s.key}
+            className="absolute rounded-full bg-white"
+            style={{
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              width: s.size,
+              height: s.size,
+              opacity: s.opacity,
+              boxShadow: theme === "light" ? "0 0 6px rgba(0,0,0,0.25)" : "0 0 6px rgba(255,255,255,0.3)",
+            }}
+          />
+        ))}
+      </motion.div>
+    </div>
+  );
+};
+
+type AccessibilityToggleProps = {
+  isAccessible: boolean;
+  onToggle: () => void;
+};
+
+const AccessibilityToggle: React.FC<AccessibilityToggleProps> = ({ isAccessible, onToggle }) => (
+  <button
+    type="button"
+    onClick={onToggle}
+    className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
+    aria-pressed={isAccessible}
+    aria-label="Activar modo accesible"
+    title="Activar modo accesible"
+  >
+    {isAccessible ? "Modo accesible: ON" : "Activar modo accesible"}
+  </button>
+);
+
+type OrbitRingProps = {
+  size: string; // porcentaje ej. "60%"
+  shouldAnimate: boolean;
+  duration: number;
+  children: React.ReactNode;
+};
+
+const OrbitRing: React.FC<OrbitRingProps> = ({ size, shouldAnimate, duration, children }) => (
+  <div className="absolute inset-0 flex items-center justify-center">
+    {/* Halo tenue de la órbita */}
+    <div
+      aria-hidden
+      className="pointer-events-none rounded-full border border-white/20 shadow-[0_0_12px_rgba(80,160,255,0.25)]"
+      style={{ width: size, height: size }}
+    />
+    {/* Contenedor rotatorio */}
+    <motion.div
+      className="absolute pointer-events-none"
+      style={{ width: size, height: size }}
+      animate={shouldAnimate ? { rotate: 360 } : undefined}
+      transition={shouldAnimate ? { duration, ease: "linear", repeat: Infinity } : undefined}
+    >
+      {children}
+    </motion.div>
+  </div>
+);
+
+type PlanetButtonProps = {
+  p: PlanetData;
+  isAccessibleMode: boolean;
+  shouldAnimate: boolean;
+  selected: boolean;
+  onSelect: (p: PlanetData) => void;
+};
+
+const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, shouldAnimate, selected, onSelect }) => {
+  const labelId = `label-${p.id}`;
+  return (
+    <motion.button
+      type="button"
+      role="listitem"
+      aria-label={`Planeta ${p.nombre}. Pulsa para ver detalles`}
+      aria-describedby={labelId}
+      onClick={() => onSelect(p)}
+      aria-roledescription="button"
+      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md ring-1 ring-white/30 hover:ring-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300 pointer-events-auto z-10`}
+      style={{ width: p.sizePx, height: p.sizePx, filter: "drop-shadow(0 0 6px rgba(255,255,255,0.2))" }}
+      whileHover={shouldAnimate ? { scale: 1.2 } : undefined}
+      whileFocus={shouldAnimate ? { scale: 1.2 } : undefined}
+    >
+      {/* Indicador de selección */}
+      {selected && (
+        <span
+          aria-hidden
+          className="absolute inset-0 rounded-full ring-2 ring-cyan-300/90 shadow-[0_0_12px_rgba(34,211,238,0.7)]"
+        />
+      )}
+      {/* Imagen real del planeta y rotación propia */}
+      <motion.img
+        src={p.imageUrl}
+        alt={p.alt}
+        className="w-full h-full object-cover"
+        loading="lazy"
+        title={`Este es ${p.nombre}`}
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).style.display = "none";
+        }}
+        animate={shouldAnimate ? { rotate: 360 } : undefined}
+        transition={shouldAnimate ? { duration: 20 + (p.sizePx % 10), ease: "linear", repeat: Infinity } : undefined}
+      />
+      {/* Glow/volumen: degradado radial desde el lado del Sol (centro) */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 130%, rgba(255,255,255,0.45), rgba(255,255,255,0.08) 45%, rgba(0,0,0,0.15) 65%, transparent 75%)",
+          mixBlendMode: "screen",
+        }}
+      />
+      {/* Tooltip visual */}
+      <span
+        id={labelId}
+        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 whitespace-nowrap rounded-md bg-black/70 text-white px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition ${
+          isAccessibleMode ? "opacity-100" : ""
+        }`}
+        role="tooltip"
+      >
+        {p.nombre}
+      </span>
+      <span className="sr-only">{p.nombre}</span>
+    </motion.button>
+  );
+};
+
 // Modal accesible con animación de zoom –
 // - Aprendibilidad: estructura clara con lista de datos.
 // - Accesibilidad: role="dialog", labels, contraste alto.
 interface PlanetModalProps {
   planeta: PlanetData | null;
   onClose: () => void;
+  isAccessibleMode?: boolean;
+  onSpeakRequest?: (text: string) => void;
 }
 
-const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose }) => {
+const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibleMode, onSpeakRequest }) => {
   const labelId = useId();
   const descId = useId();
+  const [showVideo, setShowVideo] = useState(false);
   return (
     <AnimatePresence>
       {planeta && (
@@ -238,8 +419,70 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose }) => {
               <li>
                 <strong>Curiosidad:</strong> {planeta.curiosidad}
               </li>
+              {planeta.datoExtra && (
+                <li className="mt-2">
+                  <strong>¿Sabías que…?</strong> {planeta.datoExtra}
+                </li>
+              )}
             </ul>
-            <div className="mt-6 flex justify-end">
+            {/* Video educativo */}
+            <div className="mt-4 space-y-3">
+              <button
+                type="button"
+                className="w-full px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400 transition"
+                onClick={() => setShowVideo((v) => !v)}
+                aria-expanded={showVideo}
+                aria-controls="video-educativo"
+                aria-label="Mostrar u ocultar video educativo"
+              >
+                {showVideo ? "Ocultar video educativo" : "Ver video educativo"}
+              </button>
+              <AnimatePresence>
+                {showVideo && (
+                  <motion.div
+                    id="video-educativo"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden rounded-lg border border-slate-700"
+                  >
+                    <div className="aspect-video">
+                      <iframe
+                        title={`Video educativo de ${planeta.nombre}`}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        src={
+                          planeta.videoId
+                            ? `https://www.youtube.com/embed/${planeta.videoId}?cc_load_policy=1&hl=es&modestbranding=1&rel=0`
+                            : `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(
+                                `${planeta.nombre} planeta para niños`
+                              )}&cc_load_policy=1&hl=es&modestbranding=1&rel=0`
+                        }
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
+              {isAccessibleMode && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    onSpeakRequest?.(
+                      `${planeta.nombre}. Tamaño: ${planeta.tamano}. Distancia al Sol: ${planeta.distancia}. Lunas: ${planeta.lunas}. Curiosidad: ${planeta.curiosidad}. ${
+                        planeta.datoExtra ? `Dato extra: ${planeta.datoExtra}.` : ""
+                      }`
+                    )
+                  }
+                  className="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-amber-300"
+                  aria-label="Leer descripción del planeta"
+                >
+                  Leer descripción
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400 transition"
@@ -261,6 +504,14 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose }) => {
 const SistemaSolar: React.FC = () => {
   const [seleccionado, setSeleccionado] = useState<PlanetData | null>(null);
   const [isAccessibleMode, setIsAccessibleMode] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [realOrbits, setRealOrbits] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [volume, setVolume] = useState(0.3);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
   const reduceMotion = useReducedMotion();
 
   // Si el usuario prefiere menos movimiento o modo accesible está activo, no animamos.
@@ -283,56 +534,201 @@ const SistemaSolar: React.FC = () => {
     []
   );
 
+  // Audio mínimo (click y ambiente sutil) sin recursos externos
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+
+  const ensureAudio = useCallback(async () => {
+    if (audioCtxRef.current) return audioCtxRef.current;
+    const AC: typeof AudioContext | undefined = (window as unknown as {
+      AudioContext?: typeof AudioContext;
+      webkitAudioContext?: typeof AudioContext;
+    }).AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AC) return null as unknown as AudioContext;
+    const ctx = new AC();
+    const gain = ctx.createGain();
+    gain.gain.value = muted ? 0 : volume;
+    gain.connect(ctx.destination);
+    audioCtxRef.current = ctx;
+    gainRef.current = gain;
+    return ctx;
+  }, [muted, volume]);
+
+  const playClick = useCallback(async () => {
+    if (muted) return;
+  const ctx = await ensureAudio();
+  if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 660;
+    gain.gain.value = 0.0001;
+    osc.connect(gain);
+    gain.connect(gainRef.current!);
+    osc.start();
+    // env corto
+    gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12);
+    osc.stop(ctx.currentTime + 0.13);
+  }, [ensureAudio, muted]);
+
+  useEffect(() => {
+    if (!gainRef.current) return;
+    gainRef.current.gain.value = muted ? 0 : volume;
+  }, [muted, volume]);
+
+  // Speech synthesis
+  const speakText = useCallback((text: string) => {
+    try {
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "es-ES";
+      u.rate = 1;
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      // Speech Synthesis no soportado o deshabilitado
+      console.warn("Speech synthesis unavailable", e);
+    }
+  }, []);
+
+  // Cálculo de órbitas reales (lineal en base a AU)
+  const minOrbit = 24; // coincide con configuraciones actuales
+  const maxOrbit = 92;
+  const auValues = PLANETAS.map((p) => p.distanciaAU ?? 0.39);
+  const minAU = Math.min(...auValues);
+  const maxAU = Math.max(...auValues);
+  const getOrbitPercent = (p: PlanetData) => {
+    if (!realOrbits || !p.distanciaAU) return p.orbitPercent;
+    const t = (p.distanciaAU - minAU) / (maxAU - minAU);
+    return Math.round(minOrbit + t * (maxOrbit - minOrbit));
+  };
+
+  // Drag y zoom controlado (sin librerías externas)
+  const onWheel: React.WheelEventHandler<HTMLDivElement> = (e) => {
+    e.preventDefault();
+    const delta = -e.deltaY;
+    const factor = delta > 0 ? 1.05 : 0.95;
+    setScale((s) => Math.min(2, Math.max(0.6, +(s * factor).toFixed(3))));
+  };
+  const onPointerDown: React.PointerEventHandler<HTMLDivElement> = (e) => {
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragStartRef.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+    setDragging(true);
+  };
+  const onPointerMove: React.PointerEventHandler<HTMLDivElement> = (e) => {
+    if (!dragging || !dragStartRef.current) return;
+    const nx = e.clientX - dragStartRef.current.x;
+    const ny = e.clientY - dragStartRef.current.y;
+    setOffset({ x: Math.max(-200, Math.min(200, nx)), y: Math.max(-200, Math.min(200, ny)) });
+  };
+  const onPointerUp: React.PointerEventHandler<HTMLDivElement> = (e) => {
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    setDragging(false);
+  };
+
   return (
-    <div className="min-h-[calc(100dvh-6rem)] py-8 px-4 grid place-items-center bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1020] via-[#101836] to-[#060912] relative overflow-hidden">
-      {/* Capa de estrellas */}
-      <div aria-hidden className="pointer-events-none absolute inset-0">
-        {stars.map((s) => (
-          <span
-            key={s.key}
-            className="absolute rounded-full bg-white"
-            style={{
-              top: `${s.top}%`,
-              left: `${s.left}%`,
-              width: s.size,
-              height: s.size,
-              opacity: s.opacity,
-              boxShadow: "0 0 6px rgba(255,255,255,0.3)",
-            }}
-          />
-        ))}
-      </div>
+    <div className={`${theme === "dark" ? "bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0b1020] via-[#101836] to-[#060912]" : "bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#e9eefc] via-[#dbe7ff] to-[#c7d2fe]"} min-h-[calc(100dvh-6rem)] py-8 px-4 grid place-items-center relative overflow-hidden`}>
+      {/* Capa de estrellas con movimiento sutil */}
+      <SolarBackground stars={stars} animateBg={shouldAnimate} theme={theme} />
 
       <div className="w-full max-w-[900px]">
         {/* Encabezado */}
         <header className="text-center mb-6">
           <motion.h1
-            className="text-3xl md:text-5xl font-extrabold text-yellow-300 drop-shadow [text-shadow:0_0_8px_rgba(255,255,255,0.25)]"
+            className={`text-3xl md:text-5xl font-extrabold ${theme === "dark" ? "text-yellow-300" : "text-yellow-600"} drop-shadow [text-shadow:0_0_8px_rgba(255,255,255,0.25)]`}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
           >
             Sistema Solar Interactivo
           </motion.h1>
-          <p className="mt-2 text-lg md:text-xl text-slate-100 text-center">
+          <p className={`mt-2 text-lg md:text-xl ${theme === "dark" ? "text-slate-100" : "text-slate-800"} text-center`}>
             Haz clic en un planeta para conocerlo
           </p>
         </header>
 
-        {/* Controles de accesibilidad */}
-        <div className="flex justify-end mb-3">
-          <button
-            type="button"
-            onClick={() => setIsAccessibleMode((v) => !v)}
-            className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 focus-visible:ring-offset-2"
-            aria-pressed={isAccessibleMode}
-            aria-label="Activar modo accesible"
-            title="Activar modo accesible"
-          >
-            {isAccessibleMode ? "Modo accesible: ON" : "Activar modo accesible"}
-          </button>
+        {/* Controles */}
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-3">
+          <div className="flex items-center gap-2">
+            <AccessibilityToggle isAccessible={isAccessibleMode} onToggle={() => setIsAccessibleMode((v) => !v)} />
+            <button
+              type="button"
+              onClick={() => setRealOrbits((v) => !v)}
+              className="px-3 py-2 rounded-lg bg-sky-700 hover:bg-sky-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              aria-pressed={realOrbits}
+              aria-label="Alternar mostrar órbitas reales"
+              title="Mostrar órbitas reales"
+            >
+              {realOrbits ? "Órbitas reales" : "Órbitas simples"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+              className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+              aria-label="Alternar tema claro/oscuro"
+              title="Alternar tema"
+            >
+              {theme === "dark" ? "Tema oscuro" : "Tema claro"}
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMuted((m) => !m)}
+              className="px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+              aria-pressed={muted}
+              aria-label={muted ? "Activar sonido" : "Silenciar sonido"}
+              title={muted ? "Activar sonido" : "Silenciar sonido"}
+            >
+              {muted ? "Silenciado" : "Sonido ON"}
+            </button>
+            <label className="flex items-center gap-2 text-sm text-white">
+              <span className="sr-only">Volumen</span>
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={muted ? 0 : volume}
+                onChange={(e) => setVolume(parseFloat(e.currentTarget.value))}
+                aria-label="Ajustar volumen"
+              />
+            </label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setScale((s) => Math.min(2, +(s * 1.1).toFixed(3)))}
+                className="px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-sm"
+                aria-label="Acercar"
+                title="Acercar"
+              >
+                +
+              </button>
+              <button
+                type="button"
+                onClick={() => setScale((s) => Math.max(0.6, +(s / 1.1).toFixed(3)))}
+                className="px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-sm"
+                aria-label="Alejar"
+                title="Alejar"
+              >
+                −
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setScale(1);
+                  setOffset({ x: 0, y: 0 });
+                }}
+                className="px-3 py-2 rounded-lg bg-amber-700 hover:bg-amber-600 text-white text-sm"
+                aria-label="Restablecer vista"
+                title="Restablecer vista"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Sistema solar centrado */}
+        {/* Sistema solar centrado con zoom/drag controlado */}
         <section
           aria-labelledby="zona-interactiva"
           className="relative mx-auto w-full aspect-square max-w-[900px] rounded-full"
@@ -341,108 +737,84 @@ const SistemaSolar: React.FC = () => {
             Zona interactiva del sistema solar
           </h2>
 
-          {/* Fondo dentro del disco principal (gradiente y glow) */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[#0b0f22] via-[#232b69] to-[#121a3a] shadow-inner" />
-
-          {/* Sol centrado con brillo sutil usando imagen real */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="relative">
-              <motion.div
-                aria-label="Imagen del Sol"
-                role="img"
-                className="rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,200,0,0.55)]"
-                style={{ width: 120, height: 120 }}
-                animate={shouldAnimate ? { scale: [1, 1.03, 1] } : undefined}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <img
-                  src="https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
-                  alt="Imagen real del Sol"
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                  onError={(e) => {
-                    // Fallback en caso de CORS o 404
-                    (e.currentTarget as HTMLImageElement).src =
-                      "https://upload.wikimedia.org/wikipedia/commons/0/02/Solar_prominence.jpg";
-                  }}
-                />
-              </motion.div>
-              <div
-                aria-hidden
-                className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40"
-                style={{ transform: "scale(1.4)" }}
-              />
-            </div>
-          </div>
-
-          {/* Lista de planetas (rol list) */}
+          {/* Contenedor transformable */}
           <div
-            role="list"
-            aria-label="Lista de planetas del Sistema Solar"
             className="absolute inset-0"
+            style={{ transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`, transformOrigin: "center" }}
+            onWheel={onWheel}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            role="region"
+            aria-label="Área interactiva: arrastra para mover, usa la rueda para acercar o alejar"
           >
-            {PLANETAS.map((p) => {
-              // Componente órbita: un anillo visible y un contenedor que rota
-              const ringSize = `${p.orbitPercent}%`; // diámetro del anillo
-              const labelId = `label-${p.id}`;
-              return (
-                <div key={p.id} className="absolute inset-0 flex items-center justify-center">
-                  {/* Anillo de órbita – semitransparente para referencia visual */}
-                  <div
-                    aria-hidden
-                    className="pointer-events-none rounded-full border border-white/15"
-                    style={{ width: ringSize, height: ringSize }}
-                  />
+            {/* Fondo dentro del disco principal (gradiente y glow) */}
+            <div className={`absolute inset-0 rounded-full shadow-inner ${
+              theme === "dark"
+                ? "bg-gradient-to-br from-[#0b0f22] via-[#232b69] to-[#121a3a]"
+                : "bg-gradient-to-br from-white via-[#f3f6ff] to-[#e5ebff]"
+            }`} />
 
-                  {/* Contenedor rotatorio */}
-                  <motion.div
-                    className="absolute pointer-events-none"
-                    style={{ width: ringSize, height: ringSize }}
-                    animate={shouldAnimate ? { rotate: 360 } : undefined}
-                    transition={shouldAnimate ? { duration: p.duration, ease: "linear", repeat: Infinity } : undefined}
-                  >
-                    {/* Botón planeta en el borde superior */}
-                    <motion.button
-                      type="button"
-                      role="listitem"
-                      aria-label={`Planeta ${p.nombre}. Pulsa para ver detalles`}
-                      aria-describedby={labelId}
-                      onClick={() => setSeleccionado(p)}
-                      aria-roledescription="button"
-                      className={`group absolute left-1/2 -translate-x-1/2 -top-0 rounded-full overflow-hidden ${p.color} shadow-md ring-1 ring-white/30 hover:ring-white/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-300 pointer-events-auto z-10`}
-                      style={{ width: p.sizePx, height: p.sizePx }}
-                      whileHover={shouldAnimate ? { scale: 1.2 } : undefined}
-                      whileFocus={shouldAnimate ? { scale: 1.2 } : undefined}
-                    >
-                      {/* Imagen real del planeta – accesible */}
-                      <img
-                        src={p.imageUrl}
-                        alt={p.alt}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        title={`Este es ${p.nombre}`}
-                        onError={(e) => {
-                          // Fallback genérico si una imagen no carga
-                          (e.currentTarget as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                      {/* Tooltip visual – Aprendibilidad: nombre al pasar */}
-                      <span
-                        id={labelId}
-                        className={`pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-full -top-2 whitespace-nowrap rounded-md bg-black/70 text-white px-2 py-1 text-xs opacity-0 group-hover:opacity-100 transition ${
-                          isAccessibleMode ? "opacity-100" : ""
-                        }`}
-                        role="tooltip"
-                      >
-                        {p.nombre}
-                      </span>
-                      {/* Texto para lectores de pantalla */}
-                      <span className="sr-only">{p.nombre}</span>
-                    </motion.button>
-                  </motion.div>
-                </div>
-              );
-            })}
+            {/* Sol centrado con brillo y pulso */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative">
+                <motion.div
+                  aria-label="Imagen del Sol"
+                  role="img"
+                  className="rounded-full overflow-hidden shadow-[0_0_40px_rgba(255,200,0,0.55)]"
+                  style={{ width: 120, height: 120 }}
+                  animate={shouldAnimate ? { scale: [1, 1.06, 1], boxShadow: [
+                    "0 0 40px rgba(255,200,0,0.45)",
+                    "0 0 60px rgba(255,220,100,0.7)",
+                    "0 0 40px rgba(255,200,0,0.45)",
+                  ] } : undefined}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
+                    alt="Imagen real del Sol"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        "https://upload.wikimedia.org/wikipedia/commons/0/02/Solar_prominence.jpg";
+                    }}
+                  />
+                </motion.div>
+                <motion.div
+                  aria-hidden
+                  className="absolute inset-0 rounded-full blur-xl bg-yellow-300/40"
+                  style={{ transform: "scale(1.4)" }}
+                  animate={shouldAnimate ? { opacity: [0.4, 0.7, 0.4] } : undefined}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </div>
+            </div>
+
+            {/* Lista de planetas (rol list) */}
+            <div
+              role="list"
+              aria-label="Lista de planetas del Sistema Solar"
+              className="absolute inset-0"
+            >
+              {PLANETAS.map((p) => {
+                const ringSize = `${getOrbitPercent(p)}%`;
+                return (
+                  <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration}>
+                    <PlanetButton
+                      p={p}
+                      isAccessibleMode={isAccessibleMode}
+                      shouldAnimate={shouldAnimate}
+                      selected={seleccionado?.id === p.id}
+                      onSelect={(pl) => {
+                        setSeleccionado(pl);
+                        playClick();
+                      }}
+                    />
+                  </OrbitRing>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -450,16 +822,24 @@ const SistemaSolar: React.FC = () => {
         <footer className="mt-8 text-center">
           <a
             href="/"
-            className="text-indigo-300 hover:text-indigo-200 underline"
+            className={`${theme === "dark" ? "text-indigo-300 hover:text-indigo-200" : "text-indigo-700 hover:text-indigo-600"} underline`}
             aria-label="Volver al menú principal"
           >
             Volver al menú principal
           </a>
+          <div className={`mt-2 text-xs ${theme === "dark" ? "text-slate-300" : "text-slate-700"}`}>
+            Basado en datos reales de NASA/Wikipedia – Propósito educativo
+          </div>
         </footer>
       </div>
 
       {/* Modal del planeta */}
-      <PlanetModal planeta={seleccionado} onClose={() => setSeleccionado(null)} />
+      <PlanetModal
+        planeta={seleccionado}
+        onClose={() => setSeleccionado(null)}
+        isAccessibleMode={isAccessibleMode}
+        onSpeakRequest={speakText}
+      />
     </div>
   );
 };
