@@ -5,17 +5,13 @@ import * as THREE from "three";
 
 // Quick TypeScript augmentation so JSX knows about common three/react-three-fiber primitives used here.
 // This avoids "Property 'mesh' does not exist on type 'JSX.IntrinsicElements'." compile errors.
+export {};
+
 declare global {
-  namespace JSX {
-    interface IntrinsicElements {
+  interface JSX {
+    IntrinsicElements: {
       mesh: any;
-      boxGeometry: any;
-      meshBasicMaterial: any;
-      group: any;
-      directionalLight: any;
-      ambientLight: any;
-      planeGeometry: any;
-    }
+    };
   }
 }
 
@@ -246,7 +242,7 @@ function MaterialsLib() {
 
 function BlockMesh({ block, engine }: { block: Block; engine: ReturnType<typeof useBlockEngine> }) {
   const pos = [block.x + 0.5, block.z + 0.5, block.y + 0.5] as [number, number, number];
-  // @ts-expect-error
+  // @ts-expect-error: Este error ocurre debido a un conflicto de tipos con la librería externa
   const mat: THREE.Material = (window.__BLOCK_MATS__?.[block.material]) ?? new THREE.MeshStandardMaterial({ color: "gray" });
   const { grid, setGhost, placeBlock } = engine;
 
@@ -609,7 +605,7 @@ export default function ConstruccionConBloques3D(props?: { grid?: { width: numbe
             <div><strong>Atajos:</strong></div>
             <ul className="list-disc ml-5">
               <li>1–4: seleccionar material</li>
-              <li>WASD/flechas mover ghost; Q/E subir/bajar</li>
+              <li>WASD/flechas mover ghost; Q/E sube/baja</li>
               <li>Enter/Espacio: colocar • Supr: eliminar</li>
               <li>Ctrl+Z / Ctrl+Y: deshacer/rehacer</li>
               <li>G: mostrar/ocultar grilla</li>

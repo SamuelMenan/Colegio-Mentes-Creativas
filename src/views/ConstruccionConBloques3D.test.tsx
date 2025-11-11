@@ -6,7 +6,7 @@ jest.mock("@react-three/fiber", () => {
   const React = require("react");
   return {
     __esModule: true,
-    Canvas: ({ children }: any) => React.createElement("div", { "data-testid": "r3f-canvas" }, children),
+    Canvas: ({ children }: React.PropsWithChildren<{}>) => React.createElement("div", { "data-testid": "r3f-canvas" }, children),
     useFrame: () => {},
     useThree: () => ({
       camera: {
@@ -19,10 +19,12 @@ jest.mock("@react-three/fiber", () => {
 
 jest.mock("@react-three/drei", () => {
   const React = require("react");
-  const Stub = (props: any) => React.createElement("div", props, props.children);
+  const Stub = (props: React.PropsWithChildren<{}>) => React.createElement("div", props, props.children);
   return { __esModule: true, OrbitControls: Stub, Grid: Stub };
 });
 
+import { useThree } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
 import ConstruccionConBloques3D from "./ConstruccionConBloques3D";
 
 describe("ConstruccionConBloques3D - cámara y controles", () => {
@@ -37,7 +39,7 @@ describe("ConstruccionConBloques3D - cámara y controles", () => {
     expect(screen.getByTestId("r3f-canvas")).toBeInTheDocument();
 
     // Simula movimiento de cámara (mock de OrbitControls)
-    const cameraMock = require("@react-three/fiber").useThree().camera;
+    const cameraMock = useThree().camera;
     expect(cameraMock.position.set).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), expect.any(Number));
     expect(cameraMock.lookAt).toHaveBeenCalledWith(expect.any(Number), expect.any(Number), expect.any(Number));
   });
@@ -46,7 +48,7 @@ describe("ConstruccionConBloques3D - cámara y controles", () => {
     render(<ConstruccionConBloques3D />);
 
     // OrbitControls mock debe incluir los parámetros ajustados
-    const OrbitControlsMock = require("@react-three/drei").OrbitControls;
+    const OrbitControlsMock = OrbitControls;
     expect(OrbitControlsMock).toBeDefined();
     expect(OrbitControlsMock).toHaveProperty("rotateSpeed", 0.5);
     expect(OrbitControlsMock).toHaveProperty("zoomSpeed", 0.5);
