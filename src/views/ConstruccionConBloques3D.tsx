@@ -1,19 +1,11 @@
+/* eslint-disable react/no-unknown-property */ // Props como position, castShadow son válidas en R3F
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
 import { Grid as DreiGrid, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 
-// Quick TypeScript augmentation so JSX knows about common three/react-three-fiber primitives used here.
-// This avoids "Property 'mesh' does not exist on type 'JSX.IntrinsicElements'." compile errors.
-export {};
-
-declare global {
-  interface JSX {
-    IntrinsicElements: {
-      mesh: any;
-    };
-  }
-}
+// Import vacío para asegurar las definiciones de JSX de R3F (evita augmentations manuales)
+import "@react-three/fiber";
 
 /**
  * Modelo 3D interactivo (R3F) para construcción con bloques estilo Minecraft.
@@ -242,8 +234,9 @@ function MaterialsLib() {
 
 function BlockMesh({ block, engine }: { block: Block; engine: ReturnType<typeof useBlockEngine> }) {
   const pos = [block.x + 0.5, block.z + 0.5, block.y + 0.5] as [number, number, number];
-  // @ts-expect-error: Este error ocurre debido a un conflicto de tipos con la librería externa
-  const mat: THREE.Material = (window.__BLOCK_MATS__?.[block.material]) ?? new THREE.MeshStandardMaterial({ color: "gray" });
+  const mat: THREE.Material =
+    (window as unknown as { __BLOCK_MATS__?: Record<string, THREE.Material> }).__BLOCK_MATS__?.[block.material] ??
+    new THREE.MeshStandardMaterial({ color: "gray" });
   const { grid, setGhost, placeBlock } = engine;
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
