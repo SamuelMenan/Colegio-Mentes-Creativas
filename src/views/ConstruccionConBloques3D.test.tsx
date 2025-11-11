@@ -7,8 +7,7 @@ jest.mock("@react-three/fiber", () => {
   return {
     __esModule: true,
     // No renderizar children para no introducir <mesh/> en el DOM del test
-    Canvas: (_props: React.PropsWithChildren) =>
-      React.createElement("div", { "data-testid": "r3f-canvas" }),
+    Canvas: () => React.createElement("div", { "data-testid": "r3f-canvas" }),
     useFrame: () => {},
     useThree: () => ({
       camera: {
@@ -20,7 +19,8 @@ jest.mock("@react-three/fiber", () => {
 });
 
 jest.mock("@react-three/drei", () => {
-  const Stub = (_props: React.PropsWithChildren) => null;
+  // Stub sin argumentos para evitar variable no usada
+  const Stub = () => null;
   return { __esModule: true, OrbitControls: Stub, Grid: Stub };
 });
 

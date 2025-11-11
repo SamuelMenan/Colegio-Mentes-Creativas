@@ -3,6 +3,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
 import { Grid as DreiGrid, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+// Importa el tipo del ref de OrbitControls para evitar `any`
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 // Import vacío para asegurar las definiciones de JSX de R3F (evita augmentations manuales)
 import "@react-three/fiber";
@@ -52,8 +54,10 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
   const [showGrid, setShowGrid] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
-  const [undoStack, setUndoStack] = useState<any[]>([]);
-  const [redoStack, setRedoStack] = useState<any[]>([]);
+  // Reemplazar any[] por un tipo explícito
+  type HistoryEntry = { type: "place" | "remove"; block: Block };
+  const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
 
   const keyFor = (b: { x: number; y: number; z: number }) => `${b.x},${b.y},${b.z}`;
   const blocksArray = useMemo(() => Object.values(blocksMap), [blocksMap]);
@@ -226,9 +230,8 @@ function MaterialsLib() {
     }),
     cesped: new THREE.MeshStandardMaterial({ color: materialMeta[3].color }),
   });
-  // Guardamos en global (opcional)
-  // @ts-expect-error
-  window.__BLOCK_MATS__ = mats.current;
+  // Guardamos en global (opcional) sin @ts-expect-error, usando cast seguro
+  (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
   return null;
 }
 
@@ -237,20 +240,21 @@ function BlockMesh({ block, engine }: { block: Block; engine: ReturnType<typeof 
   const mat: THREE.Material =
     (window as unknown as { __BLOCK_MATS__?: Record<string, THREE.Material> }).__BLOCK_MATS__?.[block.material] ??
     new THREE.MeshStandardMaterial({ color: "gray" });
-  const { grid, setGhost, placeBlock } = engine;
+  // Usar la altura del ghost exacta; elimina el desplazamiento +1
+  const { grid, setGhost, placeBlock, ghost } = engine;
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     setGhost({
       x: block.x,
       y: block.y,
-      z: clamp(block.z + 1, 0, grid.height - 1),
+      z: clamp(ghost.z, 0, grid.height - 1),
     });
   };
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    placeBlock({ x: block.x, y: block.y, z: clamp(block.z + 1, 0, grid.height - 1) });
+    placeBlock({ x: block.x, y: block.y, z: clamp(ghost.z, 0, grid.height - 1) });
   };
 
   return (
@@ -308,7 +312,8 @@ function Scene3D(props: {
   const { engine, containerRef } = props;
   const { grid, blocksArray, ghost, setGhost, placeBlock, removeBlock, showGrid } = engine;
 
-  const controlsRef = useRef<any>(null);
+  // Tipar correctamente el ref de OrbitControls (evita `any`)
+  const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
   // Cámara ya establecida en Canvas; sólo fijamos target una vez
   useFrame(() => {
