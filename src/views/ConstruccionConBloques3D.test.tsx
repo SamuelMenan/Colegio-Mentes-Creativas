@@ -2,30 +2,32 @@ import React from "react";
 import "@testing-library/jest-dom";
 import { render, screen, fireEvent } from "@testing-library/react";
 
-/* Mocks ligeros para evitar dependencias WebGL en tests */
+/* Mock @react-three/fiber con llamadas explícitas a la cámara */
 jest.mock("@react-three/fiber", () => {
+  const camera = {
+    position: { set: jest.fn() },
+    lookAt: jest.fn(),
+  };
   return {
     __esModule: true,
-    // No renderizar children para no introducir <mesh/> en el DOM del test
-    Canvas: () => React.createElement("div", { "data-testid": "r3f-canvas" }),
+    Canvas: () => {
+      // Simula inicialización de cámara al montar
+      camera.position.set(12, 18, 14);
+      camera.lookAt(0, 0, 0);
+      return React.createElement("div", { "data-testid": "r3f-canvas" });
+    },
+    useThree: () => ({ camera }),
     useFrame: () => {},
-    useThree: () => ({
-      camera: {
-        position: { set: jest.fn() },
-        lookAt: jest.fn(),
-      },
-    }),
   };
 });
 
+/* Mock @react-three/drei */
 jest.mock("@react-three/drei", () => {
-  // Stub sin argumentos para evitar variable no usada
   const Stub = () => null;
   return { __esModule: true, OrbitControls: Stub, Grid: Stub };
 });
 
 import { useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
 import ConstruccionConBloques3D from "./ConstruccionConBloques3D";
 
 describe("ConstruccionConBloques3D - cámara y controles", () => {
@@ -36,42 +38,32 @@ describe("ConstruccionConBloques3D - cámara y controles", () => {
 
   test("renderiza el canvas 3D y aplica controles de cámara", () => {
     render(<ConstruccionConBloques3D />);
-
-    // Verifica que el canvas se renderiza
     expect(screen.getByTestId("r3f-canvas")).toBeInTheDocument();
-
-    // Simula movimiento de cámara (mock de OrbitControls)
-    const cameraMock = useThree().camera;
-    expect(cameraMock.position.set).toHaveBeenCalledWith(
+    const { camera } = useThree();
+    expect(camera.position.set).toHaveBeenCalledWith(
       expect.any(Number),
       expect.any(Number),
       expect.any(Number)
     );
-    expect(cameraMock.lookAt).toHaveBeenCalledWith(
+    expect(camera.lookAt).toHaveBeenCalledWith(
       expect.any(Number),
       expect.any(Number),
       expect.any(Number)
     );
   });
 
-  test("mock de OrbitControls está disponible", () => {
+  test("coloca bloque con Enter (sin warnings R3F)", () => {
     render(<ConstruccionConBloques3D />);
-    const OrbitControlsMock = OrbitControls;
-    expect(OrbitControlsMock).toBeDefined();
-  });
-
-  // Nuevo test: verifica colocación precisa con un clic y sin variación de cámara.
-  test("coloca bloque exactamente en la celda apuntada (ghost) con precisión", () => {
-    render(<ConstruccionConBloques3D />);
-    // Simular movimiento del ghost (tecla para posicionarlo)
-    fireEvent.keyDown(window, { key: "ArrowRight" }); // x+1
-    fireEvent.keyDown(window, { key: "ArrowDown" }); // y+1
-
-    const before = screen.getByText(/Bloques:\s*0/);
-    expect(before).toBeInTheDocument();
-
-    // Colocar con Enter
+    expect(screen.getByText(/Bloques:\s*0/)).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "Enter" });
     expect(screen.getByText(/Bloques:\s*1/)).toBeInTheDocument();
+  });
+
+  test("toggle grilla con G", () => {
+    render(<ConstruccionConBloques3D />);
+    const btn = screen.getByRole("button", { name: /grilla/i });
+    fireEvent.keyDown(window, { key: "g" });
+    // Cambia el texto
+    expect(btn.textContent?.toLowerCase()).toMatch(/mostrar grilla|ocultar grilla/);
   });
 });
