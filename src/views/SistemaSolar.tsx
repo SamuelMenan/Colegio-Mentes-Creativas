@@ -1,5 +1,10 @@
-import React, { useMemo, useState, useId, useCallback } from "react";
+/* eslint-disable react/no-unknown-property */
+import React, { useMemo, useState, useId, useCallback, useRef } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+// Importes para el modo 3D (se activan sólo cuando se muestra el Canvas)
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
+import { OrbitControls, Stars } from "@react-three/drei";
+import * as THREE from "three";
 
 // ---------------------------------------------------------------------------
 // Datos y utilidades
@@ -17,7 +22,7 @@ type PlanetKey =
   | "urano"
   | "neptuno";
 
-interface PlanetData {
+export interface PlanetData {
   id: PlanetKey;
   nombre: string;
   tamano: string; // Relación de diámetros aprox vs. Tierra
@@ -36,7 +41,7 @@ interface PlanetData {
   descripcion?: string; // Descripción educativa mostrada en el modal
 }
 
-const PLANETAS: PlanetData[] = [
+export const PLANETAS: PlanetData[] = [
   {
     id: "sol",
     nombre: "Sol",
@@ -275,9 +280,10 @@ type OrbitRingProps = {
   duration: number;
   children: React.ReactNode;
   ringClass?: string; // permite resaltar/dim la órbita
+  speedModifier?: number; // factor de velocidad global (1=normal)
 };
 
-const OrbitRing: React.FC<OrbitRingProps> = ({ size, shouldAnimate, duration, children, ringClass }) => (
+const OrbitRing: React.FC<OrbitRingProps> = ({ size, shouldAnimate, duration, children, ringClass, speedModifier = 1 }) => (
   <div className="absolute inset-0 flex items-center justify-center">
     {/* Halo tenue de la órbita */}
     <div
@@ -290,7 +296,7 @@ const OrbitRing: React.FC<OrbitRingProps> = ({ size, shouldAnimate, duration, ch
       className="absolute pointer-events-none"
       style={{ width: size, height: size }}
       animate={shouldAnimate ? { rotate: 360 } : undefined}
-      transition={shouldAnimate ? { duration, ease: "linear", repeat: Infinity } : undefined}
+      transition={shouldAnimate ? { duration: Math.max(0.1, duration / speedModifier), ease: "linear", repeat: Infinity } : undefined}
     >
       {children}
     </motion.div>
@@ -304,9 +310,10 @@ type PlanetButtonProps = {
   selected: boolean;
   onSelect: (p: PlanetData) => void;
   forceLabels?: boolean;
+  animationSpeed?: number; // factor para ajustar velocidad de rotación propia
 };
 
-const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, shouldAnimate, selected, onSelect, forceLabels }) => {
+const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, shouldAnimate, selected, onSelect, forceLabels, animationSpeed = 1 }) => {
   const labelId = `label-${p.id}`;
   return (
     <motion.button
@@ -346,7 +353,7 @@ const PlanetButton: React.FC<PlanetButtonProps> = ({ p, isAccessibleMode, should
           transformOrigin: "center",
         }}
         animate={shouldAnimate ? { rotate: 360 } : undefined}
-        transition={shouldAnimate ? { duration: 20 + (p.sizePx % 10), ease: "linear", repeat: Infinity } : undefined}
+        transition={shouldAnimate ? { duration: (20 + (p.sizePx % 10)) / animationSpeed, ease: "linear", repeat: Infinity } : undefined}
       />
       {/* Glow/volumen: degradado radial desde el lado del Sol (centro) */}
       <span
@@ -395,7 +402,7 @@ const PlanetModal: React.FC<PlanetModalProps> = ({ planeta, onClose, isAccessibl
           aria-modal="true"
           aria-labelledby={labelId}
           aria-describedby={descId}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -547,6 +554,14 @@ const SistemaSolar: React.FC = () => {
   const [isAccessibleMode, setIsAccessibleMode] = useState(false);
   // Tema fijo oscuro (se elimina el toggle para simplificar)
   const [realOrbits, setRealOrbits] = useState(false);
+  // Modo 3D (activado bajo demanda con un botón)
+  const [is3D, setIs3D] = useState(false);
+  // Pausa animación 3D
+  const [is3DPaused, setIs3DPaused] = useState(false);
+  // Velocidad de animación: 1 = normal. Se puede acelerar o ralentizar.
+  const [animationSpeed, setAnimationSpeed] = useState(1);
+  // Modo de vista (pseudo-perspectiva 2.5D)
+  const [viewMode, setViewMode] = useState<'plano' | 'inclinada' | 'orbital'>('plano');
   // Sonido eliminado a solicitud del usuario
   const reduceMotion = useReducedMotion();
 
@@ -672,8 +687,55 @@ const SistemaSolar: React.FC = () => {
             >
               {showLabels ? "Etiquetas visibles" : "Mostrar etiquetas"}
             </button>
+            {/* Control de velocidad de animación */}
+            <label htmlFor="velocidad-anim" className="flex items-center gap-2 text-xs text-slate-200 select-none">
+              Velocidad
+              <input
+                id="velocidad-anim"
+                type="range"
+                min={0.25}
+                max={2}
+                step={0.25}
+                value={animationSpeed}
+                disabled={isAccessibleMode}
+                onChange={(e) => setAnimationSpeed(parseFloat(e.target.value))}
+                aria-label="Controlar velocidad de animación"
+                className="accent-emerald-400 w-24 disabled:opacity-40"
+              />
+              <span aria-live="polite" className="w-10 text-right tabular-nums">{animationSpeed.toFixed(2)}x</span>
+            </label>
+            {/* Modos de vista (pseudo-perspectiva) */}
+            <div role="group" aria-label="Cambiar perspectiva" className="flex items-center gap-1">
+              {[
+                { id: 'plano', label: 'Plano' },
+                { id: 'inclinada', label: 'Inclinada' },
+                { id: 'orbital', label: 'Orbital' },
+              ].map(v => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setViewMode(v.id as typeof viewMode)}
+                  className={`px-2 py-1 rounded-md text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${viewMode === v.id ? 'bg-fuchsia-600 text-white' : 'bg-slate-700 hover:bg-slate-600 text-slate-100'}`}
+                  aria-pressed={viewMode === v.id}
+                  aria-label={`Vista ${v.label}`}
+                  title={`Vista ${v.label}`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Activar vista 3D real */}
+            <button
+              type="button"
+              onClick={() => setIs3D(true)}
+              className="px-3 py-2 rounded-lg bg-fuchsia-700 hover:bg-fuchsia-600 text-white text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-300"
+              aria-label="Activar vista 3D"
+              title="Vista 3D"
+            >
+              3D
+            </button>
             <button
               type="button"
               onClick={() => setFactIndex((i) => (i + 1) % facts.length)}
@@ -691,6 +753,15 @@ const SistemaSolar: React.FC = () => {
         <section
           aria-labelledby="zona-interactiva"
           className="relative mx-auto w-full aspect-square max-w-[900px] rounded-full"
+          style={{
+            transform: viewMode === 'plano'
+              ? 'none'
+              : viewMode === 'inclinada'
+              ? 'perspective(1400px) rotateX(46deg)'
+              : 'perspective(1600px) rotateX(58deg) rotateZ(12deg)',
+            transformStyle: 'preserve-3d',
+            transition: 'transform 0.8s cubic-bezier(0.22,0.9,0.3,1)'
+          }}
         >
           <h2 id="zona-interactiva" className="sr-only">
             Zona interactiva del sistema solar
@@ -758,7 +829,7 @@ const SistemaSolar: React.FC = () => {
                   : 'border-white/10 opacity-50'
                 : undefined;
               return (
-                <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration} ringClass={ringClass}>
+                <OrbitRing key={p.id} size={ringSize} shouldAnimate={shouldAnimate} duration={p.duration} ringClass={ringClass} speedModifier={animationSpeed}>
                   {/* Planeta */}
                   <PlanetButton
                     p={p}
@@ -769,6 +840,7 @@ const SistemaSolar: React.FC = () => {
                       setSeleccionado(pl);
                     }}
                     forceLabels={showLabels}
+                    animationSpeed={animationSpeed}
                   />
                 </OrbitRing>
               );
@@ -797,6 +869,58 @@ const SistemaSolar: React.FC = () => {
         <Quiz />
       </section>
 
+      {/* Overlay 3D: representación real 3D con react-three-fiber */}
+      <AnimatePresence>
+        {is3D && (
+          <motion.div
+            className="fixed inset-0 z-[60]"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Vista 3D del Sistema Solar"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Fondo opaco con gradiente y stars detrás para contraste total */}
+            <div className="absolute inset-0 bg-gradient-to-br from-[#05070d] via-[#081020] to-[#0e1b33]" aria-hidden onClick={() => setIs3D(false)} />
+            {/* Capa starfield separada */}
+            <div className="pointer-events-none absolute inset-0 opacity-40">
+              {/* Reutilizamos el componente SolarBackground pero con densidad mayor */}
+              <SolarBackground stars={Array.from({ length: 120 }, (_, i) => ({ key: i, top: (i*29)%100, left: (i*37)%100, size: (i%3)+1, opacity: 0.35 + ((i*5)%5)/10 }))} animateBg={false} theme={'dark'} />
+            </div>
+            <div className="absolute inset-4 rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-950/90 backdrop-blur-sm">
+              <div className="absolute top-3 left-4 z-10 text-white space-y-2">
+                <h2 className="text-xl font-extrabold tracking-wide">Sistema Solar 3D</h2>
+                <p className="text-sm text-slate-300 max-w-md leading-relaxed">Arrastra para cambiar de perspectiva. Haz clic en un planeta para ver su información. Pulsa fuera o &quot;Cerrar&quot; para volver.</p>
+                <button
+                  type="button"
+                  onClick={() => setIs3DPaused(v=>!v)}
+                  className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-300"
+                  aria-pressed={is3DPaused}
+                  aria-label={is3DPaused ? 'Reanudar animación 3D' : 'Pausar animación 3D'}
+                >
+                  {is3DPaused ? 'Reanudar' : 'Pausar'}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIs3D(false)}
+                className="absolute top-3 right-3 z-10 px-3 py-2 rounded-md bg-slate-800/80 text-white border border-slate-600 hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-300"
+                aria-label="Cerrar vista 3D"
+                title="Cerrar 3D"
+              >
+                Cerrar
+              </button>
+              <Solar3DCanvas
+                onSelectPlanet={(pl) => setSeleccionado(pl)}
+                speedFactor={animationSpeed}
+                paused={is3DPaused}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Modal del planeta */}
       <PlanetModal
         planeta={seleccionado}
@@ -808,40 +932,352 @@ const SistemaSolar: React.FC = () => {
   );
 };
 
-// Quiz simple
+// Mini Quiz ampliado: 20 preguntas de opción múltiple con navegación y puntaje
+interface QuizQuestion {
+  id: string;
+  pregunta: string;
+  opciones: { id: string; texto: string }[];
+  correcta: string; // id de la opción correcta
+}
+
 const Quiz: React.FC = () => {
-  const [answer, setAnswer] = useState<string | null>(null);
-  const correct = 'jupiter';
+  const preguntas: QuizQuestion[] = [
+    { id: 'q1', pregunta: '¿Cuál es el planeta más cercano al Sol?', correcta: 'merc', opciones: [
+      { id: 'ven', texto: 'Venus' },
+      { id: 'merc', texto: 'Mercurio' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'tie', texto: 'Tierra' },
+    ]},
+    { id: 'q2', pregunta: '¿Cuál es el planeta donde vivimos?', correcta: 'tie', opciones: [
+      { id: 'mar', texto: 'Marte' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'tie', texto: 'Tierra' },
+      { id: 'nep', texto: 'Neptuno' },
+    ]},
+    { id: 'q3', pregunta: '¿Cuál es el planeta más grande del Sistema Solar?', correcta: 'jup', opciones: [
+      { id: 'sat', texto: 'Saturno' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'ura', texto: 'Urano' },
+      { id: 'nep', texto: 'Neptuno' },
+    ]},
+    { id: 'q4', pregunta: '¿Cuál es el planeta conocido como el “planeta rojo”?', correcta: 'mar', opciones: [
+      { id: 'merc', texto: 'Mercurio' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'ven', texto: 'Venus' },
+      { id: 'tie', texto: 'Tierra' },
+    ]},
+    { id: 'q5', pregunta: '¿Cuál es el planeta más caliente del Sistema Solar?', correcta: 'ven', opciones: [
+      { id: 'merc', texto: 'Mercurio' },
+      { id: 'ven', texto: 'Venus' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'tie', texto: 'Tierra' },
+    ]},
+    { id: 'q6', pregunta: '¿Qué planeta tiene anillos visibles desde la Tierra?', correcta: 'sat', opciones: [
+      { id: 'ura', texto: 'Urano' },
+      { id: 'sat', texto: 'Saturno' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'nep', texto: 'Neptuno' },
+    ]},
+    { id: 'q7', pregunta: '¿Qué planeta tiene un gran punto rojo que es una tormenta gigante?', correcta: 'jup', opciones: [
+      { id: 'ven', texto: 'Venus' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'sat', texto: 'Saturno' },
+    ]},
+    { id: 'q8', pregunta: '¿Cuál es el planeta más lejano del Sol?', correcta: 'nep', opciones: [
+      { id: 'ura', texto: 'Urano' },
+      { id: 'plu', texto: 'Plutón (planeta enano)' },
+      { id: 'nep', texto: 'Neptuno' },
+      { id: 'sat', texto: 'Saturno' },
+    ]},
+    { id: 'q9', pregunta: '¿Cuál de los siguientes planetas tiene el día más corto (gira más rápido)?', correcta: 'jup', opciones: [
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'tie', texto: 'Tierra' },
+      { id: 'ven', texto: 'Venus' },
+    ]},
+    { id: 'q10', pregunta: '¿Cuál planeta gira “al revés”, en dirección contraria a la mayoría?', correcta: 'ven', opciones: [
+      { id: 'ura', texto: 'Urano' },
+      { id: 'ven', texto: 'Venus' },
+      { id: 'merc', texto: 'Mercurio' },
+      { id: 'nep', texto: 'Neptuno' },
+    ]},
+    { id: 'q11', pregunta: '¿Qué planeta tiene un color azul brillante por el gas metano en su atmósfera?', correcta: 'ura', opciones: [
+      { id: 'sat', texto: 'Saturno' },
+      { id: 'ura', texto: 'Urano' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'ven', texto: 'Venus' },
+    ]},
+    { id: 'q12', pregunta: '¿Qué planeta tiene el mayor número de lunas conocidas?', correcta: 'sat', opciones: [
+      { id: 'sat', texto: 'Saturno' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'ven', texto: 'Venus' },
+      { id: 'tie', texto: 'Tierra' },
+    ]},
+    { id: 'q13', pregunta: '¿Cuál es el segundo planeta desde el Sol?', correcta: 'ven', opciones: [
+      { id: 'ven', texto: 'Venus' },
+      { id: 'tie', texto: 'Tierra' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'merc', texto: 'Mercurio' },
+    ]},
+    { id: 'q14', pregunta: '¿Qué planeta tiene aproximadamente el mismo tamaño que la Tierra?', correcta: 'ven', opciones: [
+      { id: 'ven', texto: 'Venus' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'ura', texto: 'Urano' },
+    ]},
+    { id: 'q15', pregunta: '¿Cuál es el planeta más pequeño del Sistema Solar?', correcta: 'merc', opciones: [
+      { id: 'merc', texto: 'Mercurio' },
+      { id: 'mar', texto: 'Marte' },
+      { id: 'ven', texto: 'Venus' },
+      { id: 'tie', texto: 'Tierra' },
+    ]},
+    { id: 'q16', pregunta: '¿Qué planeta tiene una inclinación tan grande que parece girar acostado?', correcta: 'ura', opciones: [
+      { id: 'ura', texto: 'Urano' },
+      { id: 'nep', texto: 'Neptuno' },
+      { id: 'sat', texto: 'Saturno' },
+      { id: 'jup', texto: 'Júpiter' },
+    ]},
+    { id: 'q17', pregunta: '¿Cuál es el planeta con el año más largo (tarda más en dar la vuelta al Sol)?', correcta: 'nep', opciones: [
+      { id: 'ura', texto: 'Urano' },
+      { id: 'nep', texto: 'Neptuno' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'sat', texto: 'Saturno' },
+    ]},
+    { id: 'q18', pregunta: '¿Qué planeta tiene el nombre de la diosa del amor en la mitología romana?', correcta: 'ven', opciones: [
+      { id: 'ven', texto: 'Venus' },
+      { id: 'tie', texto: 'Tierra' },
+      { id: 'jup', texto: 'Júpiter' },
+      { id: 'nep', texto: 'Neptuno' },
+    ]},
+    { id: 'q19', pregunta: '¿Cuál planeta tiene montañas, valles y volcanes, similar a la Tierra?', correcta: 'mar', opciones: [
+      { id: 'mar', texto: 'Marte' },
+      { id: 'ven', texto: 'Venus' },
+      { id: 'merc', texto: 'Mercurio' },
+      { id: 'ura', texto: 'Urano' },
+    ]},
+    { id: 'q20', pregunta: '¿Qué planeta es el séptimo desde el Sol?', correcta: 'ura', opciones: [
+      { id: 'ura', texto: 'Urano' },
+      { id: 'nep', texto: 'Neptuno' },
+      { id: 'sat', texto: 'Saturno' },
+      { id: 'jup', texto: 'Júpiter' },
+    ]},
+  ];
+
+  const [indice, setIndice] = useState(0);
+  const [respuestas, setRespuestas] = useState<Record<string,string>>({});
+  const [finalizado, setFinalizado] = useState(false);
+
+  const actual = preguntas[indice];
+  const seleccion = respuestas[actual.id];
+
+  const responder = (idOpcion: string) => {
+    if (finalizado) return;
+    setRespuestas(r => ({ ...r, [actual.id]: idOpcion }));
+  };
+
+  const siguiente = () => {
+    if (indice < preguntas.length - 1) setIndice(i => i + 1);
+  };
+  const anterior = () => {
+    if (indice > 0) setIndice(i => i - 1);
+  };
+  const terminar = () => setFinalizado(true);
+  const reiniciar = () => {
+    setRespuestas({});
+    setIndice(0);
+    setFinalizado(false);
+  };
+
+  const aciertos = finalizado ? preguntas.filter(p => respuestas[p.id] === p.correcta).length : 0;
+
   return (
-    <div>
-      <p className="mb-2">¿Cuál es el planeta más grande del Sistema Solar?</p>
-      <div className="flex flex-wrap gap-2">
-        {[
-          { id: 'tierra', label: 'La Tierra' },
-          { id: 'jupiter', label: 'Júpiter' },
-          { id: 'marte', label: 'Marte' },
-        ].map((opt) => (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => setAnswer(opt.id)}
-            className={`px-3 py-2 rounded-lg text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
-              answer === opt.id
-                ? 'bg-indigo-600 text-white'
-                : 'bg-slate-700 hover:bg-slate-600 text-white'
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
+    <div className="space-y-4">
+      <div>
+        <p className="text-sm mb-1 font-medium text-indigo-200">Pregunta {indice + 1} de {preguntas.length}</p>
+        <h4 className="font-semibold mb-3">{actual.pregunta}</h4>
+        <div className="flex flex-wrap gap-2">
+          {actual.opciones.map(opt => {
+            const seleccionada = seleccion === opt.id;
+            const esCorrecta = finalizado && opt.id === actual.correcta;
+            const esIncorrectaSeleccionada = finalizado && seleccionada && opt.id !== actual.correcta;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={finalizado && seleccion != null}
+                onClick={() => responder(opt.id)}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 transition-colors
+                  ${seleccionada && !finalizado ? 'bg-indigo-600 text-white' : ''}
+                  ${!seleccionada && !finalizado ? 'bg-slate-700 hover:bg-slate-600 text-white' : ''}
+                  ${esCorrecta ? 'bg-emerald-600 text-white' : ''}
+                  ${esIncorrectaSeleccionada ? 'bg-rose-600 text-white' : ''}`.replace(/\s+/g,' ')}
+                aria-pressed={seleccionada}
+              >
+                {opt.texto}
+              </button>
+            );
+          })}
+        </div>
+        {seleccion && !finalizado && (
+          <p className="mt-3 text-sm">
+            {seleccion === actual.correcta ? '¡Correcto! ✅' : 'No es correcto, puedes intentar otra opción.'}
+          </p>
+        )}
+        {finalizado && (
+          <p className="mt-3 text-sm text-indigo-200">Aciertos: {aciertos} / {preguntas.length} ({Math.round((aciertos/preguntas.length)*100)}%)</p>
+        )}
       </div>
-      {answer && (
-        <p className={`mt-3 text-sm ${answer === correct ? 'text-emerald-400' : 'text-rose-400'}`}>
-          {answer === correct ? '¡Correcto! Júpiter es el más grande.' : 'Intenta de nuevo. Pista: tiene la Gran Mancha Roja.'}
-        </p>
-      )}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={anterior}
+          disabled={indice === 0 || finalizado}
+          className="px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-700 disabled:opacity-40 hover:bg-slate-600 text-white"
+        >Anterior</button>
+        <button
+          type="button"
+          onClick={siguiente}
+          disabled={indice === preguntas.length - 1 || finalizado}
+          className="px-3 py-1.5 rounded-md text-xs font-semibold bg-slate-700 disabled:opacity-40 hover:bg-slate-600 text-white"
+        >Siguiente</button>
+        {!finalizado && (
+          <button
+            type="button"
+            onClick={terminar}
+            disabled={Object.keys(respuestas).length < preguntas.length}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-600 disabled:opacity-40 hover:bg-emerald-500 text-white"
+          >Terminar</button>
+        )}
+        {finalizado && (
+          <button
+            type="button"
+            onClick={reiniciar}
+            className="px-3 py-1.5 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white"
+          >Reiniciar</button>
+        )}
+      </div>
     </div>
   );
 };
 
 export default SistemaSolar;
+
+// ---------------------------------------------------------------------------
+// Subcomponente: Canvas 3D con órbitas simplificadas
+// - Uso educativo: proporciones y distancias simplificadas, control por speedFactor
+// ---------------------------------------------------------------------------
+type Solar3DCanvasProps = {
+  onSelectPlanet: (p: PlanetData) => void;
+  speedFactor: number; // reutiliza el control de velocidad global
+  paused?: boolean;
+};
+
+const Solar3DCanvas: React.FC<Solar3DCanvasProps> = ({ onSelectPlanet, speedFactor, paused = false }) => {
+  return (
+    <Canvas camera={{ position: [0, 25, 70], fov: 50 }} shadows>
+      <SuspenseFallback>
+        <Solar3DScene onSelectPlanet={onSelectPlanet} speedFactor={speedFactor} paused={paused} />
+      </SuspenseFallback>
+    </Canvas>
+  );
+};
+
+const SuspenseFallback: React.FC<{ children: React.ReactNode }> = ({ children }) => <>{children}</>;
+
+const Solar3DScene: React.FC<{ onSelectPlanet: (p: PlanetData) => void; speedFactor: number; paused: boolean }>
+  = ({ onSelectPlanet, speedFactor, paused }) => {
+  const tRef = useRef(0);
+  useFrame((_, delta) => {
+    if (!paused) {
+      tRef.current += delta * 0.2 * Math.max(0.1, speedFactor);
+    }
+  });
+
+  // Luces y fondo
+  return (
+    <>
+      <ambientLight intensity={0.25} />
+      <pointLight position={[0, 0, 0]} intensity={2.4} color={0xffee88} />
+      <Stars radius={200} depth={40} count={3000} factor={4} fade />
+      <OrbitControls enablePan={false} autoRotate autoRotateSpeed={0.4 * Math.max(0.1, speedFactor)} />
+
+      {/* Sol */}
+      <mesh position={[0,0,0]} onClick={(e) => { e.stopPropagation(); const sol = PLANETAS.find(p=>p.id==='sol'); if (sol) onSelectPlanet(sol); }}>
+        <sphereGeometry args={[5, 32, 32]} />
+        <meshStandardMaterial emissive={new THREE.Color('#ffdd55')} emissiveIntensity={1.6} color={'#ffcc33'} />
+      </mesh>
+
+      {/* Órbitas visibles: anillos tenues para cada planeta */}
+      {PLANETAS.filter(p=>p.id!=='sol').map((p) => (
+        <OrbitRing3D key={`ring-${p.id}`} p={p} />
+      ))}
+
+      {/* Planetas: usar distancia en UA si existe, sino estimación lineal por orbitPercent */}
+      {PLANETAS.filter(p=>p.id!=='sol').map((p, idx) => (
+        <Planet3D key={p.id} p={p} tRef={tRef} onSelect={() => onSelectPlanet(p)} speedFactor={speedFactor} index={idx} paused={paused} />
+      ))}
+    </>
+  );
+};
+
+const Planet3D: React.FC<{ p: PlanetData; tRef: React.MutableRefObject<number>; onSelect: () => void; speedFactor: number; index: number; paused: boolean }>
+  = ({ p, tRef, onSelect, speedFactor, index, paused }) => {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  // Escalas educativas
+  // Ampliamos distancias para evitar solapamientos visuales en modo 3D
+  const orbitBase = 14; // inicio (antes 10)
+  const orbitScale = 11; // multiplicador por UA (antes 8)
+  // Offset extra para separar interiores: Mercurio, Venus, Tierra, Marte
+  const innerOffsets: Record<PlanetKey, number> = { sol:0, mercurio:0, venus:4, tierra:8, marte:12, jupiter:0, saturno:0, urano:0, neptuno:0 };
+  const baseDistance = p.distanciaAU ? orbitBase + p.distanciaAU * orbitScale : (p.orbitPercent * 0.9);
+  const distance = baseDistance + (innerOffsets[p.id] || 0);
+  const size = Math.max(0.4, Math.min(3, p.sizePx / 6));
+  const angularSpeed = p.duration ? 80 / p.duration : 1; // más cerca = más rápido
+  // Textura básica usando imageUrl del planeta (no siempre es mapa equirectangular, pero funciona para propósito educativo)
+  const texture = useLoader(THREE.TextureLoader, p.imageUrl);
+  useFrame(() => {
+    if (!paused) {
+      const t = tRef.current * angularSpeed * Math.max(0.1, speedFactor);
+      const x = distance * Math.cos(t);
+      const z = distance * Math.sin(t);
+      if (meshRef.current) {
+        // Pequeño offset vertical por índice para separar visualmente y evitar sensación de choque
+        meshRef.current.position.set(x, (index % 3) * 0.25, z);
+        meshRef.current.rotation.y += 0.01 * Math.max(0.1, speedFactor);
+      }
+    }
+  });
+  return (
+    <mesh ref={meshRef} onClick={(e) => { e.stopPropagation(); onSelect(); }}>
+      <sphereGeometry args={[size, 48, 48]} />
+      <meshStandardMaterial map={texture} roughness={1} metalness={0} />
+      {p.id === 'saturno' && (
+        <mesh rotation={[Math.PI / 2.4, 0, 0]}>
+          <ringGeometry args={[size * 1.8, size * 3.2, 128]} />
+          <meshBasicMaterial color={'#e9d8a6'} opacity={0.5} transparent side={THREE.DoubleSide} />
+        </mesh>
+      )}
+    </mesh>
+  );
+};
+
+// Anillo de órbita 3D plano en el eje XZ
+const OrbitRing3D: React.FC<{ p: PlanetData }> = ({ p }) => {
+  const orbitBase = 14;
+  const orbitScale = 11;
+  const innerOffsets: Record<PlanetKey, number> = { sol:0, mercurio:0, venus:4, tierra:8, marte:12, jupiter:0, saturno:0, urano:0, neptuno:0 };
+  const baseDistance = p.distanciaAU ? orbitBase + p.distanciaAU * orbitScale : (p.orbitPercent * 0.9);
+  const distance = baseDistance + (innerOffsets[p.id] || 0);
+  // Grosor algo mayor proporcional a la distancia para que todas las órbitas sigan viéndose
+  const thickness = 0.15 + distance * 0.007;
+  const inner = Math.max(0.01, distance - thickness);
+  const outer = distance + thickness;
+  const color = "#6ee7ff"; // cian tenue
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]}>
+      <ringGeometry args={[inner, outer, 128]} />
+      <meshBasicMaterial color={color} opacity={0.28} transparent />
+    </mesh>
+  );
+};
