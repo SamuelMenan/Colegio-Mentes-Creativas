@@ -45,46 +45,77 @@ function clamp(n: number, min: number, max: number) {
 export function useBlockEngine(opts?: { grid?: { width: number; depth: number; height: number } }) {
   const grid = opts?.grid ?? DEFAULT_GRID;
 
+  const [ghost, setGhost] = useState<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
   const [blocksMap, setBlocksMap] = useState<Record<string, Block>>({});
-  const [ghost, setGhost] = useState<{ x: number; y: number; z: number }>({
-    x: Math.floor(grid.width / 2),
-    y: Math.floor(grid.depth / 2),
-    z: 0,
-  });
   const [material, setMaterial] = useState<Material>("madera");
   const [showGrid, setShowGrid] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
-  // Reemplazar any[] por un tipo explícito
-  type HistoryEntry = { type: "place" | "remove"; block: Block };
-  const [undoStack, setUndoStack] = useState<HistoryEntry[]>([]);
-  const [redoStack, setRedoStack] = useState<HistoryEntry[]>([]);
+  // Agregar de nuevo los estados para undo/redo (faltaban)
+  const [undoStack, setUndoStack] = useState<{ type: "place" | "remove"; block: Block }[]>([]);
+  const [redoStack, setRedoStack] = useState<{ type: "place" | "remove"; block: Block }[]>([]);
 
   const keyFor = (b: { x: number; y: number; z: number }) => `${b.x},${b.y},${b.z}`;
   const blocksArray = useMemo(() => Object.values(blocksMap), [blocksMap]);
 
   const announce = useCallback((text: string) => {
     setMessage(text);
-    window.setTimeout(() => setMessage((m) => (m === text ? null : m)), 2000);
+    const id = window.setTimeout(() => setMessage((m) => (m === text ? null : m)), 1800);
+    return () => window.clearTimeout(id);
   }, []);
 
+  // Colocación con adyacentes + soporte (debajo o lateral). Evita bloques flotantes.
   const placeBlock = useCallback(
     (pos?: { x: number; y: number; z: number }, mat?: Material) => {
-      const p = pos ?? ghost;
+      let p = pos ?? ghost;
       const m = mat ?? material;
-      const k = keyFor(p);
-      if (blocksMap[k]) {
-        announce("Ya existe un bloque en esa celda");
-        return false;
+
+      const inside = (c: typeof p) =>
+        c.x >= 0 && c.x < grid.width && c.y >= 0 && c.y < grid.depth && c.z >= 0 && c.z < grid.height;
+      const free = (c: typeof p) => !blocksMap[keyFor(c)];
+      const hasSideNeighbor = (c: typeof p) => {
+        const at = (x: number, y: number, z: number) => blocksMap[keyFor({ x, y, z })];
+        return !!(
+          at(c.x + 1, c.y, c.z) ||
+          at(c.x - 1, c.y, c.z) ||
+          at(c.x, c.y + 1, c.z) ||
+          at(c.x, c.y - 1, c.z)
+        );
+      };
+      const supported = (c: typeof p) =>
+        c.z === 0 || !!blocksMap[keyFor({ x: c.x, y: c.y, z: c.z - 1 })] || hasSideNeighbor(c);
+
+      // Si la celda objetivo está ocupada, intenta adyacentes (derecha, izquierda, adelante, atrás)
+      if (!free(p)) {
+        const candidates: typeof p[] = [
+          { x: p.x + 1, y: p.y, z: p.z },
+          { x: p.x - 1, y: p.y, z: p.z },
+          { x: p.x, y: p.y + 1, z: p.z },
+          { x: p.x, y: p.y - 1, z: p.z },
+        ];
+        const found = candidates.find((c) => inside(c) && free(c) && supported(c));
+        if (!found) {
+          announce("Celda ocupada y sin adyacente válido con soporte");
+          return false;
+        }
+        p = found;
+      } else {
+        // Si está libre, validar soporte igualmente
+        if (!supported(p)) {
+          announce("Debe tener soporte (debajo o lateral)");
+          return false;
+        }
       }
+
+      const k = keyFor(p);
       const newBlock: Block = { ...p, material: m };
       setBlocksMap((prev) => ({ ...prev, [k]: newBlock }));
       setUndoStack((s) => [...s, { type: "place", block: newBlock }]);
       setRedoStack([]);
-      announce(`Bloque colocado: ${m}`);
+      announce("Bloque colocado");
       return true;
     },
-    [ghost, material, blocksMap, announce]
+    [ghost, material, blocksMap, grid.width, grid.depth, grid.height, announce]
   );
 
   const removeBlock = useCallback(
@@ -219,12 +250,17 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 /* ------------- Escena 3D (R3F) ------------- */
 function MaterialsLib() {
   const paths = materialMeta.map(m => m.tex);
-  // useTexture acepta un array y retorna array en mismo orden
   const loaded = useTexture(paths, (textures) => {
     textures.forEach((t) => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.repeat.set(1, 1); // ajusta si quieres mosaico (ej: 2,2 para césped)
+      t.repeat.set(1, 1);
       t.anisotropy = 8;
+      // Asegura gestión correcta del espacio de color (evita sobre–saturación)
+      // Compatibilidad según versión de three: colorSpace (>= r152) o encoding (< r152)
+      // @ts-ignore
+      t.colorSpace = THREE.SRGBColorSpace;
+      // @ts-ignore
+      t.encoding = THREE.sRGBEncoding;
     });
   });
 
@@ -235,16 +271,18 @@ function MaterialsLib() {
       let material: THREE.Material;
       if (meta.key === "cristal") {
         material = new THREE.MeshPhysicalMaterial({
-          color: meta.color,
-            map: tex || undefined,
-            transmission: 0.85,
-            roughness: 0.15,
-            thickness: 0.6,
-            transparent: true,
+          color: tex ? "#ffffff" : meta.color,
+          map: tex || undefined,
+          transmission: 0.85,
+          roughness: 0.15,
+          thickness: 0.6,
+          transparent: true,
         });
       } else {
+        // Para evitar saturación de la textura (especialmente madera),
+        // usamos color blanco cuando hay textura para no tintarla.
         material = new THREE.MeshStandardMaterial({
-          color: meta.color,
+          color: tex ? "#ffffff" : meta.color,
           map: tex || undefined,
           roughness: meta.key === "piedra" ? 0.9 : 0.6,
           metalness: meta.key === "piedra" ? 0.1 : 0.0,
@@ -262,20 +300,77 @@ function BlockMesh({ block, engine }: { block: Block; engine: ReturnType<typeof 
   const mat: THREE.Material =
     (window as unknown as { __BLOCK_MATS__?: Record<string, THREE.Material> }).__BLOCK_MATS__?.[block.material] ??
     new THREE.MeshStandardMaterial({ color: "gray" });
-  // Usar la altura del ghost exacta; elimina el desplazamiento +1
   const { grid, setGhost, placeBlock, ghost } = engine;
+
+  const clickState = useRef<{ down: boolean; moved: boolean; x: number; y: number; t0: number }>({
+    down: false,
+    moved: false,
+    x: 0,
+    y: 0,
+    t0: 0,
+  });
+
+  const startClick = (e: ThreeEvent<PointerEvent>) => {
+    clickState.current = { down: true, moved: false, x: e.clientX, y: e.clientY, t0: e.timeStamp };
+  };
+  const markMove = (e: ThreeEvent<PointerEvent>) => {
+    if (!clickState.current.down) return;
+    const dx = Math.abs(e.clientX - clickState.current.x);
+    const dy = Math.abs(e.clientY - clickState.current.y);
+    if (dx + dy > 6) clickState.current.moved = true;
+  };
+  const isClick = (e: ThreeEvent<PointerEvent>) => {
+    const s = clickState.current;
+    clickState.current.down = false;
+    return !s.moved && e.timeStamp - s.t0 < 250;
+  };
+
+  // Calcula la celda adyacente según la normal de la cara
+  const computeGhostFromFace = (normal: THREE.Vector3) => {
+    const nx = Math.round(normal.x);
+    const ny = Math.round(normal.y);
+    const nz = Math.round(normal.z);
+    const target = {
+      x: clamp(block.x + nx, 0, grid.width - 1),
+      y: clamp(block.y + nz, 0, grid.depth - 1),
+      z: clamp(block.z + ny, 0, grid.height - 1),
+    };
+    return target;
+  };
 
   const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    setGhost({
-      x: block.x,
-      y: block.y,
-      z: clamp(ghost.z, 0, grid.height - 1),
-    });
+    markMove(e);
+    if (e.face?.normal) {
+      // Mostrar la vista previa EXACTA donde se colocará el bloque si se hace click
+      const tgt = computeGhostFromFace(e.face.normal);
+      setGhost(tgt);
+    } else {
+      // Si no hay normal (caso raro), mantener coordenadas base del bloque
+      setGhost({
+        x: block.x,
+        y: block.y,
+        z: clamp(ghost.z, 0, grid.height - 1),
+      });
+    }
   };
 
   const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    startClick(e);
+  };
+
+  const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    if (!isClick(e)) return;
+
+    const faceNormal = e.face?.normal;
+    if (faceNormal) {
+      const target = computeGhostFromFace(faceNormal);
+      placeBlock(target);
+      return;
+    }
+    // Fallback: apila sobre altura actual del ghost (ya visible)
     placeBlock({ x: block.x, y: block.y, z: clamp(ghost.z, 0, grid.height - 1) });
   };
 
@@ -287,6 +382,7 @@ function BlockMesh({ block, engine }: { block: Block; engine: ReturnType<typeof 
       material={mat}
       onPointerMove={handlePointerMove}
       onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
     >
       <boxGeometry args={[1, 1, 1]} />
     </mesh>
@@ -294,7 +390,7 @@ function BlockMesh({ block, engine }: { block: Block; engine: ReturnType<typeof 
 }
 
 // Preciso: se calcula la celda por coordenadas locales del plano (sin saltos perspectiva)
-function computeCell(point: THREE.Vector3, grid: { width: number; depth: number }) {
+export function computeCell(point: THREE.Vector3, grid: { width: number; depth: number }) {
   const x = clamp(Math.floor(point.x), 0, grid.width - 1);
   const y = clamp(Math.floor(point.z), 0, grid.depth - 1);
   return { x, y };
@@ -333,11 +429,19 @@ function Scene3D(props: {
 }) {
   const { engine, containerRef } = props;
   const { grid, blocksArray, ghost, setGhost, placeBlock, removeBlock, showGrid } = engine;
-
-  // Tipar correctamente el ref de OrbitControls (evita `any`)
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
-  // Cámara ya establecida en Canvas; sólo fijamos target una vez
+  // Textura de césped para el suelo
+  const groundTex = useTexture("/textures/cespedF.png");
+  useEffect(() => {
+    if (!groundTex) return;
+    groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
+    groundTex.repeat.set(grid.width, grid.depth); // 1 tile por celda
+    groundTex.anisotropy = 8;
+    groundTex.magFilter = THREE.NearestFilter;
+    groundTex.minFilter = THREE.NearestMipMapLinearFilter;
+  }, [groundTex, grid.width, grid.depth]);
+
   useFrame(() => {
     if (controlsRef.current) {
       controlsRef.current.target.set(grid.width / 2, 0, grid.depth / 2);
@@ -347,27 +451,80 @@ function Scene3D(props: {
 
   const groundRef = useRef<THREE.Mesh>(null);
 
+  // Click vs drag sobre el suelo (no colocar durante drag)
+  const groundClick = useRef<{ down: boolean; moved: boolean; x: number; y: number; t0: number }>({
+    down: false,
+    moved: false,
+    x: 0,
+    y: 0,
+    t0: 0,
+  });
+  const startGround = (e: ThreeEvent<PointerEvent>) => {
+    groundClick.current = { down: true, moved: false, x: e.clientX, y: e.clientY, t0: e.timeStamp };
+  };
+  const markGroundMove = (e: ThreeEvent<PointerEvent>) => {
+    if (!groundClick.current.down) return;
+    const dx = Math.abs(e.clientX - groundClick.current.x);
+    const dy = Math.abs(e.clientY - groundClick.current.y);
+    if (dx + dy > 6) groundClick.current.moved = true;
+  };
+  const isGroundClick = (e: ThreeEvent<PointerEvent>) => {
+    const s = groundClick.current;
+    groundClick.current.down = false;
+    return !s.moved && e.timeStamp - s.t0 < 250;
+  };
+
   const onPointerMove = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
+    markGroundMove(e);
     const p = computeCell(e.point, grid);
-    setGhost((g) => ({ ...g, x: p.x, y: p.y }));
+    // Alinea siempre ghost al suelo cuando el puntero está sobre el plano base
+    setGhost((g) => ({ x: p.x, y: p.y, z: g.z }));
   };
 
   const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
-    // Coloca exactamente donde está el ghost (ya alineado al puntero)
-    placeBlock();
+    startGround(e);
   };
 
+  const onPointerUp = (e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    if (!isGroundClick(e)) return; // fue drag: solo mover cámara
+    placeBlock(); // click corto: colocar en la celda del ghost
+  };
+
+  // Scroll para zoom (limites min/max) y botón derecho para eliminar
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
+
     const onCtx = (ev: MouseEvent) => {
       ev.preventDefault();
       removeBlock();
     };
-    el.addEventListener("contextmenu", onCtx);
-    return () => el.removeEventListener("contextmenu", onCtx);
+
+    const onWheel = (ev: WheelEvent) => {
+      ev.preventDefault();
+      const controls = controlsRef.current;
+      if (!controls) return;
+      const cam = controls.object as THREE.PerspectiveCamera;
+      const target = controls.target.clone();
+
+      const dir = cam.position.clone().sub(target).normalize();
+      const curr = cam.position.distanceTo(target);
+      const step = 1.2;
+      const next = clamp(curr + (ev.deltaY > 0 ? 1 : -1) * step, 12, 80);
+
+      cam.position.copy(target.add(dir.multiplyScalar(next)));
+      controls.update();
+    };
+
+    el.addEventListener("contextmenu", onCtx, { passive: false });
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("contextmenu", onCtx);
+      el.removeEventListener("wheel", onWheel);
+    };
   }, [containerRef, removeBlock]);
 
   return (
@@ -379,17 +536,19 @@ function Scene3D(props: {
 
       <MaterialsLib />
 
-      {/* Plano base claro (césped suave) */}
+      {/* Plano base con textura de césped */}
       <mesh
         ref={groundRef}
         position={[grid.width / 2, 0, grid.depth / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         onPointerMove={onPointerMove}
         onPointerDown={onPointerDown}
+        onPointerUp={onPointerUp}  // asegurar pointerUp para click vs drag
         receiveShadow
       >
         <planeGeometry args={[grid.width, grid.depth]} />
-        <meshStandardMaterial color="#e5f7e9" roughness={0.95} />
+        {/* si ya aplicaste textura, deja el material con map; aquí respetamos tu estado actual */}
+        <meshStandardMaterial map={groundTex} color="#ffffff" roughness={0.95} />
       </mesh>
 
       {showGrid && (
@@ -419,10 +578,8 @@ function Scene3D(props: {
         enableDamping
         dampingFactor={0.12}
         rotateSpeed={0.45}
-        zoomSpeed={0.4}
         enablePan={false}
-        minDistance={28}
-        maxDistance={30}
+        enableZoom={false} // el zoom lo manejamos con el listener 'wheel'
         minPolarAngle={0.3}
         maxPolarAngle={Math.PI / 2.05}
       />
