@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unknown-property */ // Props como position, castShadow son válidas en R3F
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
-import { Grid as DreiGrid, OrbitControls } from "@react-three/drei";
+import { Grid as DreiGrid, OrbitControls, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 // Importa el tipo del ref de OrbitControls para evitar `any`
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -16,7 +16,7 @@ import "@react-three/fiber";
  * - Panel accesible con ARIA, role="application", aria-live, tooltips y foco visible.
  */
 
-export type Material = "madera" | "piedra" | "vidrio" | "cesped";
+export type Material = "madera" | "piedra" | "roble" | "cristal" | "cesped";
 export interface Block {
   x: number; // eje X (ancho)
   y: number; // eje Y (profundidad del suelo)
@@ -30,11 +30,12 @@ const TUTORIAL_SEEN = "blocks-builder-tutorial-seen";
 export const BLOCKS_ROUTE_PATH = "/construccion-bloques"; // alias solicitado
 export const BLOCKS_ROUTE_PATH_3D = "/construccion-bloques3D";
 
-const materialMeta: { key: Material; label: string; color: string }[] = [
-  { key: "madera", label: "Madera", color: "#b45309" },
-  { key: "piedra", label: "Piedra", color: "#6b7280" },
-  { key: "vidrio", label: "Vidrio", color: "#93c5fd" },
-  { key: "cesped", label: "Césped", color: "#10b981" },
+const materialMeta: { key: Material; label: string; color: string; tex: string }[] = [
+  { key: "piedra",  label: "Piedra",  color: "#6b7280", tex: "/textures/piedra.png" },
+  { key: "madera",  label: "Madera",  color: "#b45309", tex: "/textures/madera.png" },
+  { key: "roble",   label: "Roble",   color: "#8b5a2b", tex: "/textures/roble.png" },
+  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: "/textures/cristal.png" },
+  { key: "cesped",  label: "Césped",  color: "#10b981", tex: "/textures/cesped.png" },
 ];
 
 function clamp(n: number, min: number, max: number) {
@@ -217,21 +218,42 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 
 /* ------------- Escena 3D (R3F) ------------- */
 function MaterialsLib() {
-  // Creamos materiales reutilizables (evita recrearlos por cada bloque)
-  const mats = useRef<Record<Material, THREE.Material>>({
-    madera: new THREE.MeshStandardMaterial({ color: materialMeta[0].color }),
-    piedra: new THREE.MeshStandardMaterial({ color: materialMeta[1].color }),
-    vidrio: new THREE.MeshPhysicalMaterial({
-      color: materialMeta[2].color,
-      transmission: 0.9,
-      roughness: 0.1,
-      thickness: 0.5,
-      transparent: true,
-    }),
-    cesped: new THREE.MeshStandardMaterial({ color: materialMeta[3].color }),
+  const paths = materialMeta.map(m => m.tex);
+  // useTexture acepta un array y retorna array en mismo orden
+  const loaded = useTexture(paths, (textures) => {
+    textures.forEach((t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(1, 1); // ajusta si quieres mosaico (ej: 2,2 para césped)
+      t.anisotropy = 8;
+    });
   });
-  // Guardamos en global (opcional) sin @ts-expect-error, usando cast seguro
-  (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
+
+  const mats = useRef<Record<Material, THREE.Material>>({} as Record<Material, THREE.Material>);
+  if (Object.keys(mats.current).length === 0) {
+    materialMeta.forEach((meta, i) => {
+      const tex = loaded[i] ?? null;
+      let material: THREE.Material;
+      if (meta.key === "cristal") {
+        material = new THREE.MeshPhysicalMaterial({
+          color: meta.color,
+            map: tex || undefined,
+            transmission: 0.85,
+            roughness: 0.15,
+            thickness: 0.6,
+            transparent: true,
+        });
+      } else {
+        material = new THREE.MeshStandardMaterial({
+          color: meta.color,
+          map: tex || undefined,
+          roughness: meta.key === "piedra" ? 0.9 : 0.6,
+          metalness: meta.key === "piedra" ? 0.1 : 0.0,
+        });
+      }
+      mats.current[meta.key] = material;
+    });
+    (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
+  }
   return null;
 }
 
@@ -548,11 +570,24 @@ export default function ConstruccionConBloques3D(props?: { grid?: { width: numbe
                   className="sr-only"
                 />
                 <span
-                  className="w-8 h-8 rounded-sm border border-white/20"
-                  style={{ background: m.color }}
+                  className={`w-8 h-8 rounded-sm border border-white/30 overflow-hidden relative ${
+                    material === m.key ? "ring-2 ring-indigo-400" : ""
+                  }`}
+                  style={{
+                    backgroundColor: m.color,                 // fallback
+                    backgroundImage: `url(${m.tex})`,
+                    backgroundSize: m.key === "cristal" ? "contain" : "cover",
+                    backgroundRepeat: m.key === "cristal" ? "no-repeat" : "repeat",
+                    backgroundPosition: "center",
+                    imageRendering: "pixelated"
+                  }}
                   aria-hidden
                   title={`${m.label} (${idx + 1})`}
-                />
+                >
+                  {m.key === "cristal" && (
+                    <span className="absolute inset-0 bg-white/30 mix-blend-overlay pointer-events-none" />
+                  )}
+                </span>
                 <span className="text-sm">
                   {m.label} <span className="text-xs text-slate-400">({idx + 1})</span>
                 </span>
