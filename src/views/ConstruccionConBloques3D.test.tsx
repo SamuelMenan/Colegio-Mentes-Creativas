@@ -23,13 +23,25 @@ jest.mock("@react-three/fiber", () => {
 /* Mock @react-three/drei: Grid, OrbitControls y useTexture */
 jest.mock("@react-three/drei", () => {
   const Stub = () => null;
-  const makeTex = () => ({
+
+  type TextureMock = {
+    wrapS: number;
+    wrapT: number;
+    repeat: { set: (...args: unknown[]) => void };
+    anisotropy: number;
+  };
+
+  const makeTex = (): TextureMock => ({
     wrapS: 0,
     wrapT: 0,
     repeat: { set: jest.fn() },
     anisotropy: 1,
   });
-  const useTexture = (input: any, onLoad?: any) => {
+
+  const useTexture = (
+    input: string | string[],
+    onLoad?: (texture: TextureMock | TextureMock[]) => void
+  ): TextureMock | TextureMock[] => {
     if (Array.isArray(input)) {
       const arr = input.map(() => makeTex());
       if (onLoad) onLoad(arr);
@@ -39,6 +51,7 @@ jest.mock("@react-three/drei", () => {
     if (onLoad) onLoad(tex);
     return tex;
   };
+
   return { __esModule: true, OrbitControls: Stub, Grid: Stub, useTexture };
 });
 
