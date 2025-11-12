@@ -21,7 +21,16 @@ jest.mock("@react-three/fiber", () => {
 jest.mock("@react-three/drei", () => {
   const Stub = () => null;
 
-  const makeTex = () => ({
+  type MockTexture = {
+    wrapS: number;
+    wrapT: number;
+    repeat: { set: jest.Mock };
+    anisotropy: number;
+    magFilter: number;
+    minFilter: number;
+  };
+
+  const makeTex = (): MockTexture => ({
     wrapS: 0,
     wrapT: 0,
     repeat: { set: jest.fn() },
@@ -30,7 +39,7 @@ jest.mock("@react-three/drei", () => {
     minFilter: 0,
   });
 
-  const useTexture = (input: string | string[], onLoad?: (t: any) => void) => {
+  const useTexture = (input: string | string[], onLoad?: (t: MockTexture | MockTexture[]) => void): MockTexture | MockTexture[] => {
     if (Array.isArray(input)) {
       const arr = input.map(() => makeTex());
       onLoad?.(arr);

@@ -257,10 +257,14 @@ function MaterialsLib() {
       t.anisotropy = 8;
       // Asegura gestión correcta del espacio de color (evita sobre–saturación)
       // Compatibilidad según versión de three: colorSpace (>= r152) o encoding (< r152)
-      // @ts-ignore
-      t.colorSpace = THREE.SRGBColorSpace;
-      // @ts-ignore
-      t.encoding = THREE.sRGBEncoding;
+      const srgbColorSpace = (THREE as any).SRGBColorSpace;
+      if (srgbColorSpace && "colorSpace" in t) {
+        (t as any).colorSpace = srgbColorSpace;
+      }
+      const sRGBEncoding = (THREE as any).sRGBEncoding;
+      if (sRGBEncoding && "encoding" in t) {
+        (t as any).encoding = sRGBEncoding;
+      }
     });
   });
 
