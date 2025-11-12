@@ -250,23 +250,22 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 /* ------------- Escena 3D (R3F) ------------- */
 function MaterialsLib() {
   const paths = materialMeta.map(m => m.tex);
-  const loaded = useTexture(paths, (textures) => {
+  const loaded = useTexture(paths, (textures: THREE.Texture[]) => {
     textures.forEach((t) => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.repeat.set(1, 1);
       t.anisotropy = 8;
-      // Asegura gestión correcta del espacio de color (evita sobre–saturación)
       // Compatibilidad según versión de three: colorSpace (>= r152) o encoding (< r152)
-      const srgbColorSpace = (THREE as any).SRGBColorSpace;
+      const srgbColorSpace = (THREE as typeof THREE & { SRGBColorSpace?: unknown }).SRGBColorSpace;
       if (srgbColorSpace && "colorSpace" in t) {
-        (t as any).colorSpace = srgbColorSpace;
+        (t as THREE.Texture & { colorSpace?: unknown }).colorSpace = srgbColorSpace;
       }
-      const sRGBEncoding = (THREE as any).sRGBEncoding;
+      const sRGBEncoding = (THREE as typeof THREE & { sRGBEncoding?: unknown }).sRGBEncoding;
       if (sRGBEncoding && "encoding" in t) {
-        (t as any).encoding = sRGBEncoding;
+        (t as THREE.Texture & { encoding?: unknown }).encoding = sRGBEncoding;
       }
     });
-  });
+  }) as THREE.Texture[];
 
   const mats = useRef<Record<Material, THREE.Material>>({} as Record<Material, THREE.Material>);
   if (Object.keys(mats.current).length === 0) {
