@@ -1,0 +1,139 @@
+{
+	"id": "7e915be3-3f76-42bd-ac23-eb1951cfc3a8",
+	"name": "Colegio-Mentes-Creativas - Integración",
+	"timestamp": "2025-11-12T17:49:35.043Z",
+	"collection_id": "50018875-f8d0ce43-6326-4259-8699-7de40ad6bddb",
+	"folder_id": 0,
+	"environment_id": "50018875-256e34a8-a681-479d-a553-1c7ddb6673a5",
+	"totalPass": 7,
+	"delay": 0,
+	"persist": true,
+	"status": "finished",
+	"startedAt": "2025-11-12T17:49:33.894Z",
+	"totalFail": 0,
+	"results": [
+		{
+			"id": "be8d3ad3-41c8-4a5d-9573-bf0944fb6b8e",
+			"name": "Root (200 HTML)",
+			"url": "https://colegio-mentes-creativas-puce.vercel.app/",
+			"time": 289,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {
+				"status 200": true,
+				"content-type HTML": true,
+				"tiempo < 1500ms": true
+			},
+			"testPassFailCounts": {
+				"status 200": {
+					"pass": 1,
+					"fail": 0
+				},
+				"content-type HTML": {
+					"pass": 1,
+					"fail": 0
+				},
+				"tiempo < 1500ms": {
+					"pass": 1,
+					"fail": 0
+				}
+			},
+			"times": [
+				289
+			],
+			"allTests": [
+				{
+					"status 200": true,
+					"content-type HTML": true,
+					"tiempo < 1500ms": true
+				}
+			]
+		},
+		{
+			"id": "0c2b575b-856b-4e30-9fc2-da82c87aaebf",
+			"name": "Vista 3D (200 HTML)",
+			"url": "https://colegio-mentes-creativas-puce.vercel.app/construccion-bloques3D",
+			"time": 115,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {
+				"status 200": true,
+				"content-type HTML": true
+			},
+			"testPassFailCounts": {
+				"status 200": {
+					"pass": 1,
+					"fail": 0
+				},
+				"content-type HTML": {
+					"pass": 1,
+					"fail": 0
+				}
+			},
+			"times": [
+				115
+			],
+			"allTests": [
+				{
+					"status 200": true,
+					"content-type HTML": true
+				}
+			]
+		},
+		{
+			"id": "8237baad-db85-46ca-8104-5d04a58c329a",
+			"name": "Vista bloques (200 HTML)",
+			"url": "https://colegio-mentes-creativas-puce.vercel.app/construccion-bloques",
+			"time": 113,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {
+				"status 200": true,
+				"content-type HTML": true
+			},
+			"testPassFailCounts": {
+				"status 200": {
+					"pass": 1,
+					"fail": 0
+				},
+				"content-type HTML": {
+					"pass": 1,
+					"fail": 0
+				}
+			},
+			"times": [
+				113
+			],
+			"allTests": [
+				{
+					"status 200": true,
+					"content-type HTML": true
+				}
+			]
+		}
+	],
+	"count": 1,
+	"totalTime": 517,
+	"collection": {
+		"requests": [
+			{
+				"id": "be8d3ad3-41c8-4a5d-9573-bf0944fb6b8e",
+				"method": "GET"
+			},
+			{
+				"id": "0c2b575b-856b-4e30-9fc2-da82c87aaebf",
+				"method": "GET"
+			},
+			{
+				"id": "8237baad-db85-46ca-8104-5d04a58c329a",
+				"method": "GET"
+			}
+		]
+	}
+}

@@ -1,0 +1,30 @@
+name: Postman Integration
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  postman:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Newman
+        run: npm i -g newman
+      - name: Run Postman collection
+        run: |
+          newman run tests/postman/Colegio-Mentes-Creativas.postman_collection.json \
+            -e tests/postman/Colegio-Mentes-Creativas.postman_environment.json \
+            --reporters cli,junit \
+            --reporter-junit-export newman-report.xml
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report
+          path: newman-report.xml
