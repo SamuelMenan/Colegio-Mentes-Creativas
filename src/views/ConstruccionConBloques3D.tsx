@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unknown-property */ // Props como position, castShadow son válidas en R3F
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
-import { Grid as DreiGrid, OrbitControls } from "@react-three/drei";
+import { Grid as DreiGrid, OrbitControls, useTexture } from "@react-three/drei";
 import * as THREE from "three";
 // Importa el tipo del ref de OrbitControls para evitar `any`
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -31,11 +31,11 @@ export const BLOCKS_ROUTE_PATH = "/construccion-bloques"; // alias solicitado
 export const BLOCKS_ROUTE_PATH_3D = "/construccion-bloques3D";
 
 const materialMeta: { key: Material; label: string; color: string; tex: string }[] = [
-  { key: "piedra", label: "Piedra", color: "#6b7280", tex: "/textures/Piedra.png" },
-  { key: "madera", label: "Madera", color: "#b45309", tex: "/textures/Madera.png" },
-  { key: "roble", label: "Roble", color: "#8b5a2b", tex: "/textures/Roble.png" },
-  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: "/textures/Cristal.png" },
-  { key: "cesped", label: "Césped", color: "#10b981", tex: "/textures/Cesped.png" },
+  { key: "piedra",  label: "Piedra",  color: "#6b7280", tex: "/textures/piedra.png" },
+  { key: "madera",  label: "Madera",  color: "#b45309", tex: "/textures/madera.png" },
+  { key: "roble",   label: "Roble",   color: "#8b5a2b", tex: "/textures/roble.png" },
+  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: "/textures/cristal.png" },
+  { key: "cesped",  label: "Césped",  color: "#10b981", tex: "/textures/cesped.png" },
 ];
 
 function clamp(n: number, min: number, max: number) {
@@ -218,40 +218,40 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 
 /* ------------- Escena 3D (R3F) ------------- */
 function MaterialsLib() {
-  const loaderRef = useRef<boolean>(false);
+  const paths = materialMeta.map(m => m.tex);
+  // useTexture acepta un array y retorna array en mismo orden
+  const loaded = useTexture(paths, (textures) => {
+    textures.forEach((t) => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.repeat.set(1, 1); // ajusta si quieres mosaico (ej: 2,2 para césped)
+      t.anisotropy = 8;
+    });
+  });
+
   const mats = useRef<Record<Material, THREE.Material>>({} as Record<Material, THREE.Material>);
-  if (!loaderRef.current) {
-    materialMeta.forEach((m) => {
-      const tex = new THREE.TextureLoader().load(
-        m.tex,
-        (t) => {
-          t.wrapS = t.wrapT = THREE.RepeatWrapping;
-          t.repeat.set(1, 1);
-        },
-        undefined,
-        () => { /* fallo carga => queda sólo color */ }
-      );
+  if (Object.keys(mats.current).length === 0) {
+    materialMeta.forEach((meta, i) => {
+      const tex = loaded[i] ?? null;
       let material: THREE.Material;
-      if (m.key === "cristal") {
+      if (meta.key === "cristal") {
         material = new THREE.MeshPhysicalMaterial({
-          color: m.color,
-          map: tex,
-          transmission: 0.85,
-          roughness: 0.15,
-          thickness: 0.6,
-          transparent: true,
+          color: meta.color,
+            map: tex || undefined,
+            transmission: 0.85,
+            roughness: 0.15,
+            thickness: 0.6,
+            transparent: true,
         });
       } else {
         material = new THREE.MeshStandardMaterial({
-          color: m.color,
-          map: tex,
-          roughness: m.key === "piedra" ? 0.9 : 0.6,
-          metalness: m.key === "piedra" ? 0.1 : 0.0,
+          color: meta.color,
+          map: tex || undefined,
+          roughness: meta.key === "piedra" ? 0.9 : 0.6,
+          metalness: meta.key === "piedra" ? 0.1 : 0.0,
         });
       }
-      mats.current[m.key] = material;
+      mats.current[meta.key] = material;
     });
-    loaderRef.current = true;
     (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
   }
   return null;
