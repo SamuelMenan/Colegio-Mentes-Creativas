@@ -34,7 +34,15 @@ export const BLOCKS_ROUTE_PATH_3D = "/construccion-bloques3D";
 // Helper de rutas para respetar BASE_URL (Vite)
 // Vite provides import.meta.env.BASE_URL at build time; to avoid TypeScript errors in environments
 // where "import.meta" isn't allowed we read a runtime global fallback (__BASE_URL__) and default to "/".
-const BASE_URL = (typeof (globalThis as any).__BASE_URL__ === "string" && (globalThis as any).__BASE_URL__) || "/";
+declare global {
+  interface GlobalThis {
+    __BASE_URL__?: string;
+  }
+}
+
+// Aseguramos la comprobación de tipo usando una aserción sobre globalThis para evitar accesos implícitos a índices.
+const BASE_URL: string =
+  ((globalThis as { __BASE_URL__?: string }).__BASE_URL__ ?? "/");
 const TEX = (p: string) => `${BASE_URL.replace(/\/$/, "")}/${p.replace(/^\//, "")}`;
 
 const materialMeta: { key: Material; label: string; color: string; tex: string }[] = [
