@@ -570,11 +570,24 @@ export default function ConstruccionConBloques3D(props?: { grid?: { width: numbe
                   className="sr-only"
                 />
                 <span
-                  className="w-8 h-8 rounded-sm border border-white/20"
-                  style={{ background: m.color }}
+                  className={`w-8 h-8 rounded-sm border border-white/30 overflow-hidden relative ${
+                    material === m.key ? "ring-2 ring-indigo-400" : ""
+                  }`}
+                  style={{
+                    backgroundColor: m.color,                 // fallback
+                    backgroundImage: `url(${m.tex})`,
+                    backgroundSize: m.key === "cristal" ? "contain" : "cover",
+                    backgroundRepeat: m.key === "cristal" ? "no-repeat" : "repeat",
+                    backgroundPosition: "center",
+                    imageRendering: "pixelated"
+                  }}
                   aria-hidden
                   title={`${m.label} (${idx + 1})`}
-                />
+                >
+                  {m.key === "cristal" && (
+                    <span className="absolute inset-0 bg-white/30 mix-blend-overlay pointer-events-none" />
+                  )}
+                </span>
                 <span className="text-sm">
                   {m.label} <span className="text-xs text-slate-400">({idx + 1})</span>
                 </span>
