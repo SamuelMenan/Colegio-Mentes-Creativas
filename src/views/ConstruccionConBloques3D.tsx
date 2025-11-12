@@ -16,7 +16,7 @@ import "@react-three/fiber";
  * - Panel accesible con ARIA, role="application", aria-live, tooltips y foco visible.
  */
 
-export type Material = "madera" | "piedra" | "vidrio" | "cesped";
+export type Material = "madera" | "piedra" | "roble" | "cristal" | "cesped";
 export interface Block {
   x: number; // eje X (ancho)
   y: number; // eje Y (profundidad del suelo)
@@ -30,11 +30,12 @@ const TUTORIAL_SEEN = "blocks-builder-tutorial-seen";
 export const BLOCKS_ROUTE_PATH = "/construccion-bloques"; // alias solicitado
 export const BLOCKS_ROUTE_PATH_3D = "/construccion-bloques3D";
 
-const materialMeta: { key: Material; label: string; color: string }[] = [
-  { key: "madera", label: "Madera", color: "#b45309" },
-  { key: "piedra", label: "Piedra", color: "#6b7280" },
-  { key: "vidrio", label: "Vidrio", color: "#93c5fd" },
-  { key: "cesped", label: "Césped", color: "#10b981" },
+const materialMeta: { key: Material; label: string; color: string; tex: string }[] = [
+  { key: "piedra", label: "Piedra", color: "#6b7280", tex: "/textures/Piedra.png" },
+  { key: "madera", label: "Madera", color: "#b45309", tex: "/textures/Madera.png" },
+  { key: "roble", label: "Roble", color: "#8b5a2b", tex: "/textures/Roble.png" },
+  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: "/textures/Cristal.png" },
+  { key: "cesped", label: "Césped", color: "#10b981", tex: "/textures/Cesped.png" },
 ];
 
 function clamp(n: number, min: number, max: number) {
@@ -217,21 +218,42 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 
 /* ------------- Escena 3D (R3F) ------------- */
 function MaterialsLib() {
-  // Creamos materiales reutilizables (evita recrearlos por cada bloque)
-  const mats = useRef<Record<Material, THREE.Material>>({
-    madera: new THREE.MeshStandardMaterial({ color: materialMeta[0].color }),
-    piedra: new THREE.MeshStandardMaterial({ color: materialMeta[1].color }),
-    vidrio: new THREE.MeshPhysicalMaterial({
-      color: materialMeta[2].color,
-      transmission: 0.9,
-      roughness: 0.1,
-      thickness: 0.5,
-      transparent: true,
-    }),
-    cesped: new THREE.MeshStandardMaterial({ color: materialMeta[3].color }),
-  });
-  // Guardamos en global (opcional) sin @ts-expect-error, usando cast seguro
-  (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
+  const loaderRef = useRef<boolean>(false);
+  const mats = useRef<Record<Material, THREE.Material>>({} as Record<Material, THREE.Material>);
+  if (!loaderRef.current) {
+    materialMeta.forEach((m) => {
+      const tex = new THREE.TextureLoader().load(
+        m.tex,
+        (t) => {
+          t.wrapS = t.wrapT = THREE.RepeatWrapping;
+          t.repeat.set(1, 1);
+        },
+        undefined,
+        () => { /* fallo carga => queda sólo color */ }
+      );
+      let material: THREE.Material;
+      if (m.key === "cristal") {
+        material = new THREE.MeshPhysicalMaterial({
+          color: m.color,
+          map: tex,
+          transmission: 0.85,
+          roughness: 0.15,
+          thickness: 0.6,
+          transparent: true,
+        });
+      } else {
+        material = new THREE.MeshStandardMaterial({
+          color: m.color,
+          map: tex,
+          roughness: m.key === "piedra" ? 0.9 : 0.6,
+          metalness: m.key === "piedra" ? 0.1 : 0.0,
+        });
+      }
+      mats.current[m.key] = material;
+    });
+    loaderRef.current = true;
+    (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
+  }
   return null;
 }
 
