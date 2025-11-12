@@ -31,25 +31,13 @@ const TUTORIAL_SEEN = "blocks-builder-tutorial-seen";
 export const BLOCKS_ROUTE_PATH = "/construccion-bloques"; // alias solicitado
 export const BLOCKS_ROUTE_PATH_3D = "/construccion-bloques3D";
 
-// Helper de rutas para respetar BASE_URL (Vite)
-// Vite provides import.meta.env.BASE_URL at build time; to avoid TypeScript errors in environments
-// where "import.meta" isn't allowed we read a runtime global fallback (__BASE_URL__) and default to "/".
-declare global {
-  interface GlobalThis {
-    __BASE_URL__?: string;
-  }
-}
-
-// Aseguramos la comprobación de tipo usando una aserción sobre globalThis para evitar accesos implícitos a índices.
-const BASE_URL: string =
-  ((globalThis as { __BASE_URL__?: string }).__BASE_URL__ ?? "/");
-const TEX = (p: string) => `${BASE_URL.replace(/\/$/, "")}/${p.replace(/^\//, "")}`;
+// Eliminado: helpers BASE_URL/TEX (ya no se usan texturas)
 
 const materialMeta: { key: Material; label: string; color: string }[] = [
-  { key: "gris",   label: "Gris",       color: "#6b7280" }, // piedra
-  { key: "marron", label: "Marrón",     color: "#8b5a2b" }, // roble/madera
-  { key: "azul",   label: "Azul",       color: "#93c5fd" }, // cristal aprox.
-  { key: "verde",  label: "Verde",      color: "#10b981" }, // césped
+  { key: "gris",   label: "Gris",       color: "#6b7280" },
+  { key: "marron", label: "Marrón",     color: "#8b5a2b" },
+  { key: "azul",   label: "Azul",       color: "#93c5fd" },
+  { key: "verde",  label: "Verde",      color: "#10b981" },
 ];
 
 function clamp(n: number, min: number, max: number) {
