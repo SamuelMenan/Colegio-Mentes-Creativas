@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 /* eslint-disable react/no-unknown-property */ // Props como position, castShadow son válidas en R3F
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
@@ -30,12 +31,18 @@ const TUTORIAL_SEEN = "blocks-builder-tutorial-seen";
 export const BLOCKS_ROUTE_PATH = "/construccion-bloques"; // alias solicitado
 export const BLOCKS_ROUTE_PATH_3D = "/construccion-bloques3D";
 
+// Helper de rutas para respetar BASE_URL (Vite)
+// Vite provides import.meta.env.BASE_URL at build time; to avoid TypeScript errors in environments
+// where "import.meta" isn't allowed we read a runtime global fallback (__BASE_URL__) and default to "/".
+const BASE_URL = (typeof (globalThis as any).__BASE_URL__ === "string" && (globalThis as any).__BASE_URL__) || "/";
+const TEX = (p: string) => `${BASE_URL.replace(/\/$/, "")}/${p.replace(/^\//, "")}`;
+
 const materialMeta: { key: Material; label: string; color: string; tex: string }[] = [
-  { key: "piedra",  label: "Piedra",  color: "#6b7280", tex: "/textures/piedra.png" },
-  { key: "madera",  label: "Madera",  color: "#b45309", tex: "/textures/madera.png" },
-  { key: "roble",   label: "Roble",   color: "#8b5a2b", tex: "/textures/roble.png" },
-  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: "/textures/cristal.png" },
-  { key: "cesped",  label: "Césped",  color: "#10b981", tex: "/textures/cesped.png" },
+  { key: "piedra",  label: "Piedra",  color: "#6b7280", tex: TEX("textures/piedra.png") },
+  { key: "madera",  label: "Madera",  color: "#b45309", tex: TEX("textures/madera.png") },
+  { key: "roble",   label: "Roble",   color: "#8b5a2b", tex: TEX("textures/roble.png") },
+  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: TEX("textures/cristal.png") },
+  { key: "cesped",  label: "Césped",  color: "#10b981", tex: TEX("textures/cesped.png") },
 ];
 
 function clamp(n: number, min: number, max: number) {
@@ -435,7 +442,7 @@ function Scene3D(props: {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
   // Textura de césped para el suelo
-  const groundTex = useTexture("/textures/cespedF.png");
+  const groundTex = useTexture(TEX("textures/cespedF.png"));
   useEffect(() => {
     if (!groundTex) return;
     groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;

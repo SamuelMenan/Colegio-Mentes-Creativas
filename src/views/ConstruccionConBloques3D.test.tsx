@@ -11,7 +11,7 @@ jest.mock("@react-three/fiber", () => {
   return {
     __esModule: true,
     Canvas: ({ children }: { children?: React.ReactNode }) =>
-      React.createElement("div", { "data-testid": "r3f-canvas" }, children),
+      React.createElement("div", { "data-testid": "r3f-canvas" }, children as React.ReactNode),
     useThree: () => ({ camera }),
     useFrame: () => {},
   };
