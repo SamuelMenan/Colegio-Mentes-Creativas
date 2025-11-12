@@ -2,7 +2,7 @@
 /* eslint-disable react/no-unknown-property */ // Props como position, castShadow son válidas en R3F
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, ThreeEvent, useFrame } from "@react-three/fiber";
-import { Grid as DreiGrid, OrbitControls, useTexture } from "@react-three/drei";
+import { Grid as DreiGrid, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 // Importa el tipo del ref de OrbitControls para evitar `any`
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -17,7 +17,7 @@ import "@react-three/fiber";
  * - Panel accesible con ARIA, role="application", aria-live, tooltips y foco visible.
  */
 
-export type Material = "madera" | "piedra" | "roble" | "cristal" | "cesped";
+export type Material = "gris" | "marron" | "azul" | "verde";
 export interface Block {
   x: number; // eje X (ancho)
   y: number; // eje Y (profundidad del suelo)
@@ -45,12 +45,11 @@ const BASE_URL: string =
   ((globalThis as { __BASE_URL__?: string }).__BASE_URL__ ?? "/");
 const TEX = (p: string) => `${BASE_URL.replace(/\/$/, "")}/${p.replace(/^\//, "")}`;
 
-const materialMeta: { key: Material; label: string; color: string; tex: string }[] = [
-  { key: "piedra",  label: "Piedra",  color: "#6b7280", tex: TEX("textures/piedra.png") },
-  { key: "madera",  label: "Madera",  color: "#b45309", tex: TEX("textures/madera.png") },
-  { key: "roble",   label: "Roble",   color: "#8b5a2b", tex: TEX("textures/roble.png") },
-  { key: "cristal", label: "Cristal", color: "#93c5fd", tex: TEX("textures/cristal.png") },
-  { key: "cesped",  label: "Césped",  color: "#10b981", tex: TEX("textures/cesped.png") },
+const materialMeta: { key: Material; label: string; color: string }[] = [
+  { key: "gris",   label: "Gris",       color: "#6b7280" }, // piedra
+  { key: "marron", label: "Marrón",     color: "#8b5a2b" }, // roble/madera
+  { key: "azul",   label: "Azul",       color: "#93c5fd" }, // cristal aprox.
+  { key: "verde",  label: "Verde",      color: "#10b981" }, // césped
 ];
 
 function clamp(n: number, min: number, max: number) {
@@ -62,7 +61,7 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 
   const [ghost, setGhost] = useState<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 });
   const [blocksMap, setBlocksMap] = useState<Record<string, Block>>({});
-  const [material, setMaterial] = useState<Material>("madera");
+  const [material, setMaterial] = useState<Material>("gris");
   const [showGrid, setShowGrid] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -264,48 +263,15 @@ export function useBlockEngine(opts?: { grid?: { width: number; depth: number; h
 
 /* ------------- Escena 3D (R3F) ------------- */
 function MaterialsLib() {
-  const paths = materialMeta.map(m => m.tex);
-  const loaded = useTexture(paths, (textures: THREE.Texture[]) => {
-    textures.forEach((t) => {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.repeat.set(1, 1);
-      t.anisotropy = 8;
-      // Compatibilidad según versión de three: colorSpace (>= r152) o encoding (< r152)
-      const srgbColorSpace = (THREE as typeof THREE & { SRGBColorSpace?: unknown }).SRGBColorSpace;
-      if (srgbColorSpace && "colorSpace" in t) {
-        (t as THREE.Texture & { colorSpace?: unknown }).colorSpace = srgbColorSpace;
-      }
-      const sRGBEncoding = (THREE as typeof THREE & { sRGBEncoding?: unknown }).sRGBEncoding;
-      if (sRGBEncoding && "encoding" in t) {
-        (t as THREE.Texture & { encoding?: unknown }).encoding = sRGBEncoding;
-      }
-    });
-  }) as THREE.Texture[];
-
+  // Crea materiales planos por color (sin texturas)
   const mats = useRef<Record<Material, THREE.Material>>({} as Record<Material, THREE.Material>);
   if (Object.keys(mats.current).length === 0) {
-    materialMeta.forEach((meta, i) => {
-      const tex = loaded[i] ?? null;
-      let material: THREE.Material;
-      if (meta.key === "cristal") {
-        material = new THREE.MeshPhysicalMaterial({
-          color: tex ? "#ffffff" : meta.color,
-          map: tex || undefined,
-          transmission: 0.85,
-          roughness: 0.15,
-          thickness: 0.6,
-          transparent: true,
-        });
-      } else {
-        // Para evitar saturación de la textura (especialmente madera),
-        // usamos color blanco cuando hay textura para no tintarla.
-        material = new THREE.MeshStandardMaterial({
-          color: tex ? "#ffffff" : meta.color,
-          map: tex || undefined,
-          roughness: meta.key === "piedra" ? 0.9 : 0.6,
-          metalness: meta.key === "piedra" ? 0.1 : 0.0,
-        });
-      }
+    materialMeta.forEach((meta) => {
+      const material = new THREE.MeshStandardMaterial({
+        color: meta.color,
+        roughness: meta.key === "gris" ? 0.9 : 0.6,
+        metalness: meta.key === "gris" ? 0.1 : 0.0,
+      });
       mats.current[meta.key] = material;
     });
     (window as unknown as { __BLOCK_MATS__?: Record<Material, THREE.Material> }).__BLOCK_MATS__ = mats.current;
@@ -449,17 +415,6 @@ function Scene3D(props: {
   const { grid, blocksArray, ghost, setGhost, placeBlock, removeBlock, showGrid } = engine;
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
-  // Textura de césped para el suelo
-  const groundTex = useTexture(TEX("textures/cespedF.png"));
-  useEffect(() => {
-    if (!groundTex) return;
-    groundTex.wrapS = groundTex.wrapT = THREE.RepeatWrapping;
-    groundTex.repeat.set(grid.width, grid.depth); // 1 tile por celda
-    groundTex.anisotropy = 8;
-    groundTex.magFilter = THREE.NearestFilter;
-    groundTex.minFilter = THREE.NearestMipMapLinearFilter;
-  }, [groundTex, grid.width, grid.depth]);
-
   useFrame(() => {
     if (controlsRef.current) {
       controlsRef.current.target.set(grid.width / 2, 0, grid.depth / 2);
@@ -554,7 +509,7 @@ function Scene3D(props: {
 
       <MaterialsLib />
 
-      {/* Plano base con textura de césped */}
+      {/* Plano base con color sólido */}
       <mesh
         ref={groundRef}
         position={[grid.width / 2, 0, grid.depth / 2]}
@@ -565,8 +520,7 @@ function Scene3D(props: {
         receiveShadow
       >
         <planeGeometry args={[grid.width, grid.depth]} />
-        {/* si ya aplicaste textura, deja el material con map; aquí respetamos tu estado actual */}
-        <meshStandardMaterial map={groundTex} color="#ffffff" roughness={0.95} />
+        <meshStandardMaterial color="#a7f3d0" roughness={0.95} />
       </mesh>
 
       {showGrid && (
@@ -749,19 +703,11 @@ export default function ConstruccionConBloques3D(props?: { grid?: { width: numbe
                     material === m.key ? "ring-2 ring-indigo-400" : ""
                   }`}
                   style={{
-                    backgroundColor: m.color,                 // fallback
-                    backgroundImage: `url(${m.tex})`,
-                    backgroundSize: m.key === "cristal" ? "contain" : "cover",
-                    backgroundRepeat: m.key === "cristal" ? "no-repeat" : "repeat",
-                    backgroundPosition: "center",
-                    imageRendering: "pixelated"
+                    backgroundColor: m.color
                   }}
                   aria-hidden
                   title={`${m.label} (${idx + 1})`}
                 >
-                  {m.key === "cristal" && (
-                    <span className="absolute inset-0 bg-white/30 mix-blend-overlay pointer-events-none" />
-                  )}
                 </span>
                 <span className="text-sm">
                   {m.label} <span className="text-xs text-slate-400">({idx + 1})</span>
