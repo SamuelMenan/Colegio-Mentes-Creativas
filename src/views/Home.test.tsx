@@ -17,20 +17,19 @@ describe("Home view", () => {
     ).toBeInTheDocument();
   });
 
-  it("muestra accesos disponibles y son enlaces navegables", () => {
+  it("muestra accesos disponibles y deshabilitados correctamente", () => {
     render(
       <MemoryRouter>
         <Home />
       </MemoryRouter>
     );
-    // Disponibles: deben ser <a> (link)
+    // Disponibles (3 enlaces)
     expect(screen.getByRole("link", { name: /Abrir área de Ciencias Naturales/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir área de Ciencias Sociales y Geografía/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir área de Tecnología/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Abrir área de Pensamiento Lógico/i })).toBeInTheDocument();
-    // No disponibles: visibles pero aria-disabled
-    const matematicas = screen.getByRole("button", { name: /Abrir área de Matemáticas.*no disponible/i });
-    const arte = screen.getByRole("button", { name: /Abrir área de Arte.*no disponible/i });
+    expect(screen.getByRole("link", { name: /Abrir área de Ciencias Sociales\/Geografía/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir área de Tecnología y Pensamiento Lógico/i })).toBeInTheDocument();
+    // No disponibles (2 botones deshabilitados)
+    const matematicas = screen.getByRole("button", { name: /Abrir área de Matemáticas\/Geometría.*no disponible/i });
+    const arte = screen.getByRole("button", { name: /Abrir área de Arte y Creatividad.*no disponible/i });
     expect(matematicas).toHaveAttribute("aria-disabled", "true");
     expect(arte).toHaveAttribute("aria-disabled", "true");
   });

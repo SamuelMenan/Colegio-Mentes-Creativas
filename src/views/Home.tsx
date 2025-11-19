@@ -1,24 +1,24 @@
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, FlaskConical, Globe, Cpu, Brain, Palette, CheckCircle2, Clock } from "lucide-react";
+import { BookOpen, FlaskConical, Globe, Cpu, Palette, CheckCircle2, Clock } from "lucide-react";
 
 type MenuItem = {
   label: string;
   icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
-  color: string; // tailwind bg color class
+  color: string;
   aria: string;
-  to?: string; // ruta de navegación
+  to?: string;
+  available: boolean;
 };
 
-// Todas las secciones (las disponibles incluyen una ruta en `to`)
+// Secciones exactas solicitadas
 const MENU: MenuItem[] = [
-  { label: "Matemáticas", icon: BookOpen, color: "bg-blue-500", aria: "Abrir área de Matemáticas" },
-  { label: "Ciencias Naturales", icon: FlaskConical, color: "bg-green-500", aria: "Abrir área de Ciencias Naturales", to: "/sistema-solar" },
-  { label: "Ciencias Sociales / Geografía", icon: Globe, color: "bg-yellow-500", aria: "Abrir área de Ciencias Sociales y Geografía", to: "/planeta-tierra" },
-  { label: "Tecnología", icon: Cpu, color: "bg-indigo-500", aria: "Abrir área de Tecnología", to: "/construccion-bloques3D" },
-  { label: "Pensamiento Lógico", icon: Brain, color: "bg-emerald-500", aria: "Abrir área de Pensamiento Lógico", to: "/construccion-bloques3D" },
-  { label: "Arte", icon: Palette, color: "bg-pink-500", aria: "Abrir área de Arte" },
+  { label: "Matemáticas/Geometría", icon: BookOpen, color: "bg-blue-500", aria: "Abrir área de Matemáticas/Geometría", available: false },
+  { label: "Ciencias Naturales", icon: FlaskConical, color: "bg-green-500", aria: "Abrir área de Ciencias Naturales", to: "/sistema-solar", available: true },
+  { label: "Ciencias Sociales/Geografía", icon: Globe, color: "bg-yellow-500", aria: "Abrir área de Ciencias Sociales/Geografía", to: "/planeta-tierra", available: true },
+  { label: "Tecnología y Pensamiento Lógico", icon: Cpu, color: "bg-indigo-500", aria: "Abrir área de Tecnología y Pensamiento Lógico", to: "/construccion-bloques3D", available: true },
+  { label: "Arte y Creatividad", icon: Palette, color: "bg-pink-500", aria: "Abrir área de Arte y Creatividad", available: false },
 ];
 
 type Slide = {
@@ -72,51 +72,49 @@ export default function Home() {
       {/* Menú principal */}
       <section aria-labelledby="areas-conocimiento" className="px-4">
         <h2 id="areas-conocimiento" className="sr-only">Áreas del conocimiento</h2>
-        <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-          {MENU.map(({ label, icon: Icon, color, aria, to }) => {
+        <div className="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
+          {MENU.map(({ label, icon: Icon, color, aria, to, available }) => {
+            const cardClasses = available
+              ? "bg-white/90 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:shadow-lg ring-1 ring-emerald-400/40"
+              : "bg-white/60 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 opacity-85";
+
+            const badgeClasses = available
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+              : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/40";
+
             const content = (
               <div
-                className={`relative rounded-2xl p-5 h-full flex flex-col items-center justify-center text-center shadow-md border transition
-                  ${
-                    to
-                      ? "bg-white/90 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:shadow-lg ring-1 ring-emerald-400/40"
-                      : "bg-white/60 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 opacity-85"
-                  }
-                `}
+                className={`rounded-2xl h-44 sm:h-48 flex flex-col items-center justify-between text-center shadow-md border transition p-4 ${cardClasses}`}
               >
-                <div className={`w-14 h-14 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg ${to ? "group-hover:rotate-6" : "grayscale"} transition`}>
+                <div className="flex w-full justify-center">
+                  <span
+                    className={`text-xs px-2.5 py-1 rounded-full border inline-flex items-center gap-1 ${badgeClasses}`}
+                  >
+                    {available ? (
+                      <>
+                        <CheckCircle2 aria-hidden="true" className="w-3.5 h-3.5" />
+                        <span>Disponible</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock aria-hidden="true" className="w-3.5 h-3.5" />
+                        <span>Próximamente</span>
+                      </>
+                    )}
+                  </span>
+                </div>
+                <div className={`w-14 h-14 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg ${available ? "group-hover:rotate-6" : "grayscale"} transition`}>
                   <Icon aria-hidden="true" className="w-8 h-8" />
                 </div>
-                <span className="mt-3 font-semibold text-slate-800 dark:text-slate-100 text-sm md:text-base">
+                <span className="font-semibold text-slate-800 dark:text-slate-100 text-xs sm:text-sm md:text-base leading-tight">
                   {label}
-                </span>
-                <span
-                  className={`absolute top-3 right-3 text-xs px-2.5 py-1 rounded-full border inline-flex items-center gap-1
-                    ${
-                      to
-                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
-                        : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/40"
-                    }
-                  `}
-                >
-                  {to ? (
-                    <>
-                      <CheckCircle2 aria-hidden="true" className="w-3.5 h-3.5" />
-                      <span>Disponible</span>
-                    </>
-                  ) : (
-                    <>
-                      <Clock aria-hidden="true" className="w-3.5 h-3.5" />
-                      <span>Próximamente</span>
-                    </>
-                  )}
                 </span>
               </div>
             );
 
             return (
-              <motion.div key={label} whileHover={{ scale: to ? 1.05 : 1 }} whileTap={{ scale: to ? 0.98 : 1 }} className="group">
-                {to ? (
+              <motion.div key={label} whileHover={{ scale: available ? 1.05 : 1 }} whileTap={{ scale: available ? 0.98 : 1 }} className="group">
+                {available && to ? (
                   <Link
                     to={to}
                     aria-label={aria}
