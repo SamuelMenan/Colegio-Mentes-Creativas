@@ -10,7 +10,8 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint -c eslint.config.cjs . --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write .",
-    "test": "jest --passWithNoTests"
+    "test": "jest --passWithNoTests",
+    "test:postman": "npx newman run tests/postman/Colegio-Mentes-Creativas.postman_collection.json -e tests/postman/Colegio-Mentes-Creativas.postman_environment.json --reporters cli"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.6",

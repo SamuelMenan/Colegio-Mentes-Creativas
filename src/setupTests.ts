@@ -50,3 +50,23 @@ Object.defineProperty(document, "documentElement", {
 Object.defineProperty(document, "dispatchEvent", {
   value: jest.fn(),
 });
+
+// Polyfill ResizeObserver requerido por @react-three/fiber / react-use-measure
+if (typeof (global as any).ResizeObserver === "undefined") {
+  (global as any).ResizeObserver = class {
+    observe() {/* noop */}
+    unobserve() {/* noop */}
+    disconnect() {/* noop */}
+  };
+}
+
+// Evita errores de jsdom al montar <Canvas> (getContext no implementado)
+if (!HTMLCanvasElement.prototype.getContext) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  HTMLCanvasElement.prototype.getContext = function (): any {
+    return {
+      // mocks mínimos usados por three.js en inicialización
+      canvas: this,
+    } as any;
+  };
+}
