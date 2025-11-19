@@ -52,21 +52,20 @@ Object.defineProperty(document, "dispatchEvent", {
 });
 
 // Polyfill ResizeObserver requerido por @react-three/fiber / react-use-measure
-if (typeof (global as any).ResizeObserver === "undefined") {
-  (global as any).ResizeObserver = class {
-    observe() {/* noop */}
-    unobserve() {/* noop */}
-    disconnect() {/* noop */}
-  };
+interface GlobalWithResizeObserver { ResizeObserver?: typeof ResizeObserver }
+const g = globalThis as GlobalWithResizeObserver;
+if (typeof g.ResizeObserver === "undefined") {
+  class ResizeObserverStub {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  }
+  g.ResizeObserver = ResizeObserverStub as unknown as typeof ResizeObserver;
 }
 
 // Evita errores de jsdom al montar <Canvas> (getContext no implementado)
 if (!HTMLCanvasElement.prototype.getContext) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  HTMLCanvasElement.prototype.getContext = function (): any {
-    return {
-      // mocks mínimos usados por three.js en inicialización
-      canvas: this,
-    } as any;
+  HTMLCanvasElement.prototype.getContext = function (): unknown {
+    return { canvas: this };
   };
 }
