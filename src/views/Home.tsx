@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { BookOpen, FlaskConical, Globe, Cpu, Brain, Palette } from "lucide-react";
+import { BookOpen, FlaskConical, Globe, Cpu, Brain, Palette, CheckCircle2, Clock } from "lucide-react";
 
 type MenuItem = {
   label: string;
@@ -77,7 +77,11 @@ export default function Home() {
             const content = (
               <div
                 className={`relative rounded-2xl p-5 h-full flex flex-col items-center justify-center text-center shadow-md border transition
-                  ${to ? "bg-white/90 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:shadow-lg" : "bg-white/60 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 opacity-80"}
+                  ${
+                    to
+                      ? "bg-white/90 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:shadow-lg ring-1 ring-emerald-400/40"
+                      : "bg-white/60 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 opacity-85"
+                  }
                 `}
               >
                 <div className={`w-14 h-14 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg ${to ? "group-hover:rotate-6" : "grayscale"} transition`}>
@@ -87,11 +91,25 @@ export default function Home() {
                   {label}
                 </span>
                 <span
-                  className={`absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full border
-                    ${to ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30"}
+                  className={`absolute top-3 right-3 text-xs px-2.5 py-1 rounded-full border inline-flex items-center gap-1
+                    ${
+                      to
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40"
+                        : "bg-slate-500/15 text-slate-700 dark:text-slate-300 border-slate-500/40"
+                    }
                   `}
                 >
-                  {to ? "Disponible" : "Próximamente"}
+                  {to ? (
+                    <>
+                      <CheckCircle2 aria-hidden="true" className="w-3.5 h-3.5" />
+                      <span>Disponible</span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock aria-hidden="true" className="w-3.5 h-3.5" />
+                      <span>Próximamente</span>
+                    </>
+                  )}
                 </span>
               </div>
             );
