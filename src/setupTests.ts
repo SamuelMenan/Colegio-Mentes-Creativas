@@ -65,7 +65,8 @@ if (typeof g.ResizeObserver === "undefined") {
 
 // Evita errores de jsdom al montar <Canvas> (getContext no implementado)
 if (!HTMLCanvasElement.prototype.getContext) {
-  HTMLCanvasElement.prototype.getContext = function (): unknown {
-    return { canvas: this };
-  };
+  HTMLCanvasElement.prototype.getContext = (function (this: HTMLCanvasElement, _contextId: string) {
+    void _contextId;
+    return { canvas: this } as unknown as CanvasRenderingContext2D; // stub mínimo
+  } as unknown) as typeof HTMLCanvasElement.prototype.getContext;
 }
