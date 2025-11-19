@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { FlaskConical, Brain } from "lucide-react";
+import { BookOpen, FlaskConical, Globe, Cpu, Brain, Palette } from "lucide-react";
 
 type MenuItem = {
   label: string;
@@ -11,11 +11,14 @@ type MenuItem = {
   to?: string; // ruta de navegación
 };
 
-// Mostrar únicamente secciones con contenido disponible (redirigen a vistas existentes)
+// Todas las secciones (las disponibles incluyen una ruta en `to`)
 const MENU: MenuItem[] = [
+  { label: "Matemáticas", icon: BookOpen, color: "bg-blue-500", aria: "Abrir área de Matemáticas" },
   { label: "Ciencias Naturales", icon: FlaskConical, color: "bg-green-500", aria: "Abrir área de Ciencias Naturales", to: "/sistema-solar" },
+  { label: "Ciencias Sociales / Geografía", icon: Globe, color: "bg-yellow-500", aria: "Abrir área de Ciencias Sociales y Geografía", to: "/planeta-tierra" },
+  { label: "Tecnología", icon: Cpu, color: "bg-indigo-500", aria: "Abrir área de Tecnología", to: "/construccion-bloques3D" },
   { label: "Pensamiento Lógico", icon: Brain, color: "bg-emerald-500", aria: "Abrir área de Pensamiento Lógico", to: "/construccion-bloques3D" },
-  // Si más áreas tienen vistas listas, agrégalas aquí con su "to".
+  { label: "Arte", icon: Palette, color: "bg-pink-500", aria: "Abrir área de Arte" },
 ];
 
 type Slide = {
@@ -70,24 +73,47 @@ export default function Home() {
       <section aria-labelledby="areas-conocimiento" className="px-4">
         <h2 id="areas-conocimiento" className="sr-only">Áreas del conocimiento</h2>
         <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-          {MENU.filter((i) => !!i.to).map(({ label, icon: Icon, color, aria, to }) => (
-            <motion.div key={label} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
-              <Link
-                to={to as string}
-                aria-label={aria}
-                className="block group focus:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-indigo-300 rounded-2xl"
+          {MENU.map(({ label, icon: Icon, color, aria, to }) => {
+            const content = (
+              <div
+                className={`relative rounded-2xl p-5 h-full flex flex-col items-center justify-center text-center shadow-md border transition
+                  ${to ? "bg-white/90 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:shadow-lg" : "bg-white/60 dark:bg-slate-800/50 border-slate-200/50 dark:border-slate-700/50 opacity-80"}
+                `}
               >
-                <div className={`rounded-2xl p-5 h-full flex flex-col items-center justify-center text-center shadow-md bg-white/90 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 hover:shadow-lg transition`}>
-                  <div className={`w-14 h-14 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg group-hover:rotate-6 transition`}>
-                    <Icon aria-hidden="true" className="w-8 h-8" />
-                  </div>
-                  <span className="mt-3 font-semibold text-slate-800 dark:text-slate-100 text-sm md:text-base">
-                    {label}
-                  </span>
+                <div className={`w-14 h-14 ${color} text-white rounded-2xl flex items-center justify-center shadow-lg ${to ? "group-hover:rotate-6" : "grayscale"} transition`}>
+                  <Icon aria-hidden="true" className="w-8 h-8" />
                 </div>
-              </Link>
-            </motion.div>
-          ))}
+                <span className="mt-3 font-semibold text-slate-800 dark:text-slate-100 text-sm md:text-base">
+                  {label}
+                </span>
+                <span
+                  className={`absolute top-3 right-3 text-[10px] px-2 py-0.5 rounded-full border
+                    ${to ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : "bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/30"}
+                  `}
+                >
+                  {to ? "Disponible" : "Próximamente"}
+                </span>
+              </div>
+            );
+
+            return (
+              <motion.div key={label} whileHover={{ scale: to ? 1.05 : 1 }} whileTap={{ scale: to ? 0.98 : 1 }} className="group">
+                {to ? (
+                  <Link
+                    to={to}
+                    aria-label={aria}
+                    className="block focus:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 focus-visible:ring-indigo-300 rounded-2xl"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <div role="button" aria-disabled="true" aria-label={`${aria} (no disponible)`} className="rounded-2xl cursor-not-allowed">
+                    {content}
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       </section>
 

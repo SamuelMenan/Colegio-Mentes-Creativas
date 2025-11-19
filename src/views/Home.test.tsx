@@ -23,11 +23,16 @@ describe("Home view", () => {
         <Home />
       </MemoryRouter>
     );
-    // Secciones con contenido actualmente disponible
-    const naturales = screen.getByRole("link", { name: /Abrir área de Ciencias Naturales/i });
-    const logico = screen.getByRole("link", { name: /Abrir área de Pensamiento Lógico/i });
-    expect(naturales).toBeInTheDocument();
-    expect(logico).toBeInTheDocument();
+    // Disponibles: deben ser <a> (link)
+    expect(screen.getByRole("link", { name: /Abrir área de Ciencias Naturales/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir área de Ciencias Sociales y Geografía/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir área de Tecnología/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir área de Pensamiento Lógico/i })).toBeInTheDocument();
+    // No disponibles: visibles pero aria-disabled
+    const matematicas = screen.getByRole("button", { name: /Abrir área de Matemáticas.*no disponible/i });
+    const arte = screen.getByRole("button", { name: /Abrir área de Arte.*no disponible/i });
+    expect(matematicas).toHaveAttribute("aria-disabled", "true");
+    expect(arte).toHaveAttribute("aria-disabled", "true");
   });
 
   it("muestra el pie de página con el texto de derechos", () => {
